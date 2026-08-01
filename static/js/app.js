@@ -16,6 +16,7 @@ const elLetraAtual = document.getElementById("letra-atual");
 const elPalavraAtual = document.getElementById("palavra-atual");
 const elFraseAtual = document.getElementById("frase-atual");
 const elFraseTraduzida = document.getElementById("frase-traduzida");
+const elFraseGramatical = document.getElementById("frase-gramatical");
 const barraProgressoFill = document.getElementById("barra-progresso-fill");
 const btnApagarLetra = document.getElementById("btn-apagar-letra");
 const btnFecharPalavra = document.getElementById("btn-fechar-palavra");
@@ -493,6 +494,18 @@ async function traduzirFrase(texto) {
       return;
     }
     elFraseTraduzida.textContent = dados.traducao;
+    if (elFraseGramatical) {
+      // Só aparece quando a reorganização gramatical via LLM está configurada
+      // no servidor (GROQ_API_KEY) e realmente mudou o texto — sinaliza pro
+      // usuário QUE frase foi de fato traduzida, já que ela pode diferir da
+      // sequência crua editável em "Frase (Português)".
+      if (dados.texto_gramatical) {
+        elFraseGramatical.hidden = false;
+        elFraseGramatical.textContent = `Interpretado como: "${dados.texto_gramatical}"`;
+      } else {
+        elFraseGramatical.hidden = true;
+      }
+    }
     ultimaTraducaoTexto = dados.traducao;
     adicionarAoHistorico(alvo, dados.traducao);
     falar(dados.traducao, "en-US");
@@ -534,6 +547,7 @@ function novaFrase() {
   visorScanner.classList.remove("analisando", "confirmado");
   elLetraAtual.textContent = "—";
   elFraseTraduzida.textContent = "—";
+  if (elFraseGramatical) elFraseGramatical.hidden = true;
   atualizarUiFrase();
 }
 

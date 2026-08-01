@@ -51,6 +51,23 @@ frase e traduz**, em tempo real:
    `IDIOMAS_SUPORTADOS` (`app.py`), o `GoogleTranslator` já suporta qualquer
    par de idiomas. Resultado cacheado em memória (mesma frase não traduz de
    novo).
+3.5. **Reorganização gramatical via LLM (opcional)** — Libras tem gramática
+   própria (geralmente sem artigos/preposições, ordem tópico-comentário ou
+   SOV), então a sequência crua soletrada (ex: "CASA EU IR") não é uma frase
+   gramatical em português de verdade — traduzir isso direto pro inglês
+   produz um resultado tão estranho quanto a entrada. `src/sinalizai/
+   traducao_gramatical.py` adiciona um passo opcional ANTES da tradução:
+   se a variável de ambiente `GROQ_API_KEY` estiver configurada, um LLM
+   (Groq, `llama-3.1-8b-instant` por padrão) reescreve a sequência crua como
+   português gramatical ("Eu vou para casa"), e só ENTÃO ela é traduzida.
+   **Opt-in e com fallback gracioso**: sem a chave configurada (ou se a
+   chamada falhar por qualquer motivo — rede, limite de taxa), o campo
+   `texto_gramatical` da resposta vem `null` e a tradução segue com o texto
+   cru, exatamente como se essa etapa não existisse. Pra ativar: `export
+   GROQ_API_KEY=sua-chave` (ou `set` no PowerShell) antes de rodar `app.py`
+   — chave grátis em [console.groq.com](https://console.groq.com). Quando
+   presente, o front-end mostra uma linha `Interpretado como: "..."` entre a
+   frase soletrada e a tradução em inglês.
 4. **Voz**: assim que a tradução chega, o navegador fala o texto em inglês
    em voz alta via `window.speechSynthesis` (Web Speech API nativa do
    navegador — sem servidor de TTS, sem chave de API, sem depender de

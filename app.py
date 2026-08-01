@@ -29,7 +29,7 @@ from flask import Flask, jsonify, render_template, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
-from sinalizai import config, feedback_aprendizado
+from sinalizai import config, feedback_aprendizado, traducao_gramatical
 from sinalizai.landmarks import HandLandmarkExtractor, HolisticSequenceExtractor
 from sinalizai.modelo_dinamico import ClassificadorPalavrasLSTM
 
@@ -186,7 +186,7 @@ def reconhecer_palavra():
 # pipeline (GoogleTranslator via deep-translator) já suporta qualquer par.
 IDIOMAS_SUPORTADOS = {"en": "English"}
 
-_cache_traducao: dict[tuple[str, str], str] = {}
+_cache_traducao: dict[tuple[str, str], dict] = {}
 
 
 @app.route("/api/traduzir", methods=["POST"])
@@ -202,14 +202,36 @@ def traduzir():
 
     chave = (texto, idioma)
     if chave in _cache_traducao:
-        return jsonify({"texto_original": texto, "idioma_alvo": idioma, "traducao": _cache_traducao[chave], "do_cache": True})
+        entrada = _cache_traducao[chave]
+        return jsonify({
+            "texto_original": texto,
+            "texto_gramatical": entrada["texto_gramatical"],
+            "idioma_alvo": idioma,
+            "traducao": entrada["traducao"],
+            "do_cache": True,
+        })
+
+    # Passo opcional (só roda se GROQ_API_KEY estiver configurada): reescreve
+    # a sequência crua sinalizada (gramática de Libras) como português
+    # gramatical ANTES de traduzir — sem isso, o texto cru vai direto pro
+    # Google Translate e produz um inglês tão estranho quanto o português de
+    # entrada. Se a chave não existir ou a chamada falhar, segue com `texto`
+    # sem quebrar nada (mesmo comportamento de antes desta rodada).
+    texto_gramatical = traducao_gramatical.reorganizar_gramaticalmente(texto)
+    texto_para_traduzir = texto_gramatical or texto
 
     ultimo_erro = None
     for tentativa in range(3):
         try:
-            traducao = GoogleTranslator(source="pt", target=idioma).translate(texto)
-            _cache_traducao[chave] = traducao
-            return jsonify({"texto_original": texto, "idioma_alvo": idioma, "traducao": traducao, "do_cache": False})
+            traducao = GoogleTranslator(source="pt", target=idioma).translate(texto_para_traduzir)
+            _cache_traducao[chave] = {"texto_gramatical": texto_gramatical, "traducao": traducao}
+            return jsonify({
+                "texto_original": texto,
+                "texto_gramatical": texto_gramatical,
+                "idioma_alvo": idioma,
+                "traducao": traducao,
+                "do_cache": False,
+            })
         except Exception as erro:  # serviço de tradução externo — instável por natureza, vale tentar de novo
             ultimo_erro = erro
             time.sleep(0.5)

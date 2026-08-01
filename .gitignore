@@ -18,3 +18,7 @@ models/mediapipe/*.task
 
 *.log
 .DS_Store
+
+# Chave de API pra reorganização gramatical via LLM (GROQ_API_KEY) — nunca
+# deve ir pro repositório; configure como variável de ambiente (ver README).
+.env

@@ -565,6 +565,13 @@ main {
   min-height: 2.4rem;
 }
 
+.frase-gramatical {
+  margin: calc(var(--space-2) * -1) 0 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 .traducao-box {
   border-color: var(--accent-confirm);
 }
