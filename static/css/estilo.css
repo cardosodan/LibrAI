@@ -74,6 +74,29 @@ main {
   font-size: 1.1rem;
 }
 
+.btn-camera {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 0.5rem 0.9rem;
+  background: rgba(20, 22, 30, 0.75);
+  color: var(--texto);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-camera:hover {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+.btn-camera.desligada {
+  border-color: var(--aviso);
+  color: var(--aviso);
+}
+
 .painel-controles {
   flex: 1 1 320px;
   background: var(--painel);

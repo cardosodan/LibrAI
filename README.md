@@ -212,7 +212,7 @@ venv/Scripts/python.exe -m sinalizai.demo_webcam
 
 # Web (Flask — o mesmo modelo, front-end no navegador)
 venv/Scripts/python.exe app.py
-# abrir http://127.0.0.1:5060
+# abrir http://127.0.0.1:8080
 ```
 
 Os dois modos degradam graciosamente: se só o modelo do alfabeto existir,

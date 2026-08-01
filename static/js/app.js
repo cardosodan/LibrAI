@@ -14,10 +14,12 @@ const elFraseTraduzida = document.getElementById("frase-traduzida");
 const btnFecharPalavra = document.getElementById("btn-fechar-palavra");
 const btnTraduzirAgora = document.getElementById("btn-traduzir-agora");
 const btnNovaFrase = document.getElementById("btn-nova-frase");
+const btnCamera = document.getElementById("btn-camera");
 
 let modoAtual = "alfabeto";
 let poolingAtivo = false;
 let gravandoPalavra = false;
+let streamAtual = null;
 
 const ctx = canvas.getContext("2d");
 
@@ -42,15 +44,46 @@ let semMaoDesde = null;
 async function iniciarCamera() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+    streamAtual = stream;
     video.srcObject = stream;
     await video.play();
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
+    overlay.style.display = "block";
     overlay.textContent = "Câmera pronta";
     setTimeout(() => (overlay.style.display = "none"), 1500);
+    if (btnCamera) {
+      btnCamera.textContent = "Parar câmera";
+      btnCamera.classList.remove("desligada");
+    }
     iniciarPollingAlfabeto();
   } catch (erro) {
+    overlay.style.display = "block";
     overlay.textContent = "Não consegui acessar a câmera: " + erro.message;
+  }
+}
+
+function pararCamera() {
+  poolingAtivo = false;
+  if (streamAtual) {
+    streamAtual.getTracks().forEach((faixa) => faixa.stop());
+    streamAtual = null;
+  }
+  video.srcObject = null;
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  overlay.style.display = "block";
+  overlay.textContent = "Câmera desligada";
+  if (btnCamera) {
+    btnCamera.textContent = "Ligar câmera";
+    btnCamera.classList.add("desligada");
+  }
+}
+
+function alternarCamera() {
+  if (streamAtual) {
+    pararCamera();
+  } else {
+    iniciarCamera();
   }
 }
 
@@ -181,6 +214,10 @@ async function iniciarPollingAlfabeto() {
 
 async function gravarEClassificarPalavra() {
   if (gravandoPalavra) return;
+  if (!streamAtual) {
+    resultado.textContent = "Câmera está desligada — clique em \"Ligar câmera\" primeiro.";
+    return;
+  }
   gravandoPalavra = true;
   btnGravarPalavra.disabled = true;
   const frames = [];
@@ -248,6 +285,9 @@ if (btnTraduzirAgora) {
 }
 if (btnNovaFrase) {
   btnNovaFrase.addEventListener("click", novaFrase);
+}
+if (btnCamera) {
+  btnCamera.addEventListener("click", alternarCamera);
 }
 
 iniciarCamera();
