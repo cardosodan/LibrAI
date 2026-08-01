@@ -37,12 +37,29 @@
 
 body {
   margin: 0;
-  background: var(--bg-base);
+  /* Sem cor aqui de propósito — quem pinta o fundo agora é o
+     .fundo-mosaico (SVG fixo, primeiro elemento do body), que já inclui
+     o cinza sólido por baixo do mosaico. Ver regra logo abaixo. */
   color: var(--text-primary);
   font-family: var(--fonte-corpo);
   font-weight: 400;
   line-height: 1.5;
   min-height: 100vh;
+}
+
+/* Mosaico bem discreto da bandeira do Brasil no fundo de toda a página —
+   pedido explícito do usuário. Losango amarelo + círculo azul sobre campo
+   verde, repetido em ladrilho pequeno, bem baixa opacidade (não é enfeite
+   central, é textura de fundo). O cinza sólido (--bg-base) mora dentro do
+   próprio SVG, então ele sozinho já é o fundo inteiro da página — o body
+   não precisa (e não deve) ter cor própria além dele. */
+.fundo-mosaico {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
 }
 
 h1, h2 {
