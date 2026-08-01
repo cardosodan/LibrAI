@@ -153,9 +153,15 @@
 
     <div id="modo-palavra" class="modo" hidden>
       {% if palavras_disponivel %}
-        <p>Clique em "Gravar sinal" e execute a palavra em ~2 segundos.</p>
+        <p>Clique em "Gravar sinal" e execute a palavra em ~2 segundos — ou
+          deixe a detecção automática abaixo perceber sozinha quando você
+          começa e termina o sinal.</p>
         <p class="letras-suportadas">Palavras suportadas: {{ palavras|join(', ') }}</p>
         <button id="btn-gravar-palavra">GRAVAR SINAL (2S)</button>
+        <label class="toggle-dev">
+          <input type="checkbox" id="chk-deteccao-automatica" checked>
+          Detecção automática de início/fim (sem precisar clicar)
+        </label>
       {% else %}
         <p class="aviso">
           Modelo de palavras ainda não foi treinado neste servidor — precisa de vídeos

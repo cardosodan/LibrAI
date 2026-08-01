@@ -144,6 +144,44 @@ já pronta e outra como infraestrutura aguardando dado de treino:
   zero, o mesmo espírito de "arquitetura pronta antes do dado" já usado
   pro pipeline de palavras inteiro.
 
+## Segmentação temporal automática (início/fim do sinal sem clicar)
+
+Antes, classificar uma palavra exigia clicar em "GRAVAR SINAL (2S)" e
+executar o sinal numa janela fixa de 2 segundos — o botão continua existindo
+e funcionando exatamente igual, mas agora tem uma alternativa: um toggle
+"Detecção automática de início/fim" (ligado por padrão) que percebe sozinho
+quando o usuário começa e termina de sinalizar, sem nenhum clique.
+
+**Importante ser honesto sobre o que isso é**: não é um modelo treinado de
+detecção contínua de sinal (spotting) — isso é um problema de pesquisa em
+aberto na área. É uma **heurística de movimento**, implementada 100% no
+front-end (`static/js/app.js`, `processarDeteccaoAutomaticaPalavra`):
+
+1. Reaproveita a MESMA detecção de mão que já roda a cada poll no modo
+   alfabeto (`/api/reconhecer-letra`) — só pra saber SE tem mão em quadro e
+   ONDE ela está (ponto 9, base do dedo médio, o mesmo ponto já usado na
+   trilha de movimento do modo dev). Não classifica nenhuma letra nesse
+   contexto, ignora os campos `letra`/`confianca` de propósito.
+2. **Início**: a mão aparece em quadro → começa a acumular frames num buffer.
+3. **Fim**: dois gatilhos independentes, o que disparar primeiro —
+   - a mão fica **parada** (deslocamento do ponto 9 abaixo de um limiar) por
+     ~550ms seguidos, considerado "segurando a pose final do sinal";
+   - a mão **sai de quadro** por ~500ms, considerado "sinal terminou e a mão
+     abaixou".
+   Um buffer com menos de ~1s de duração é descartado como ruído/flicker
+   (mão passando rápido pela câmera, não um sinal de verdade); um buffer que
+   passa de ~8s dispara a classificação de qualquer jeito, como teto de
+   segurança.
+4. Ao detectar o fim, os frames buferizados vão pro MESMO
+   `/api/reconhecer-palavra` de sempre — a classificação em si (LSTM) não
+   muda em nada, só a forma como os frames chegam até ela.
+
+Os limiares (`LIMIAR_MOVIMENTO_AUTO`, `PARADO_MAX_AUTO_MS`,
+`SEM_MAO_MAX_AUTO_MS`, `MIN_FRAMES_AUTO`, `MAX_FRAMES_AUTO`, todos no topo de
+`app.js`) são valores de partida razoáveis, não calibrados contra um
+vocabulário real gravado (ainda não existe um) — esperado precisar de ajuste
+fino assim que houver sinais reais pra testar contra.
+
 ## Resultados reais (alfabeto)
 
 **Atualizado após expandir de 15 pra 21 letras** (mesclando o dataset original

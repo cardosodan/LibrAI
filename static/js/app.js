@@ -44,6 +44,7 @@ const modalLetraStatus = document.getElementById("modal-letra-status");
 const btnFecharModal = document.getElementById("btn-fechar-modal");
 const feedbackAprendizado = document.getElementById("feedback-aprendizado");
 const pistaFacial = document.getElementById("pista-facial");
+const chkDeteccaoAutomatica = document.getElementById("chk-deteccao-automatica");
 
 let modoAtual = "alfabeto";
 let poolingAtivo = false;
@@ -103,6 +104,26 @@ const ctxSparkline = sparklineCanvas ? sparklineCanvas.getContext("2d") : null;
 let ultimosTemposPoll = [];
 const JANELA_TELEMETRIA = 20;
 
+// --- Segmentação temporal automática (modo palavra) -----------------------
+// Heurística de movimento — NÃO é um modelo treinado de spotting contínuo de
+// sinal (isso continua um problema de pesquisa em aberto). Reaproveita a
+// detecção de mão que já roda a cada poll (via /api/reconhecer-letra, mesmo
+// endpoint do alfabeto) só pra saber SE tem mão em quadro e ONDE ela está —
+// não classifica letra nenhuma nesse modo, ignora "letra"/"confianca" da
+// resposta de propósito. Início do sinal = mão aparece; fim = mão fica
+// parada por um tempo OU sai de quadro. O botão "GRAVAR SINAL" continua
+// funcionando igual, como alternativa manual sempre disponível.
+const MIN_FRAMES_AUTO = 6;           // ~1s a INTERVALO_POLL_MS — buffers menores viram ruído/flicker, descartados
+const MAX_FRAMES_AUTO = 45;          // ~8s — teto de segurança contra buffer sem fim (mão parada em quadro pra sempre)
+const LIMIAR_MOVIMENTO_AUTO = 0.018; // deslocamento normalizado (0-1) do ponto 9 entre polls pra contar como "em movimento"
+const PARADO_MAX_AUTO_MS = 550;      // parado (mão presente, sem movimento) por esse tempo -> fim do sinal
+const SEM_MAO_MAX_AUTO_MS = 500;     // mão sai de quadro por esse tempo -> fim do sinal (se já tinha buffer suficiente)
+
+let bufferAutoPalavra = [];
+let pontoAnteriorAuto = null;
+let paradoDesdeAuto = null;
+let semMaoDesdeAuto = null;
+
 async function iniciarCamera() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -151,6 +172,7 @@ function pararCamera() {
   }
   video.srcObject = null;
   ctxEsqueleto.clearRect(0, 0, overlayEsqueleto.width, overlayEsqueleto.height);
+  resetarBufferAuto();
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   overlay.style.display = "flex";
   overlayTexto.textContent = "Câmera desligada";
@@ -593,30 +615,38 @@ async function iniciarPollingAlfabeto() {
       } catch (erro) {
         marcarConexao(false);
       }
+    } else if (
+      modoAtual === "palavra" &&
+      !gravandoPalavra &&
+      streamAtual &&
+      chkDeteccaoAutomatica &&
+      chkDeteccaoAutomatica.checked
+    ) {
+      // Reaproveita o MESMO endpoint do alfabeto só pelo sinal "tem mão em
+      // quadro, e onde" — não classifica letra nenhuma aqui, ver
+      // processarDeteccaoAutomaticaPalavra.
+      try {
+        const frame = capturarFrameBase64();
+        const resposta = await fetch("/api/reconhecer-letra", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ frame }),
+        });
+        const dados = await resposta.json();
+        marcarConexao(true);
+        if (!dados.erro) await processarDeteccaoAutomaticaPalavra(dados, frame);
+      } catch (erro) {
+        marcarConexao(false);
+      }
     }
     await new Promise((r) => setTimeout(r, INTERVALO_POLL_MS));
   }
 }
 
-async function gravarEClassificarPalavra() {
-  if (gravandoPalavra) return;
-  if (!streamAtual) {
-    resultado.textContent = 'Câmera está desligada — clique em "Ligar câmera" primeiro.';
-    return;
-  }
-  gravandoPalavra = true;
-  btnGravarPalavra.disabled = true;
-  const frames = [];
-  const duracaoMs = 2000;
-  const intervaloMs = 100; // ~20 frames em 2s
-  const inicio = Date.now();
-
-  while (Date.now() - inicio < duracaoMs) {
-    frames.push(capturarFrameBase64());
-    resultado.textContent = `Gravando... ${((Date.now() - inicio) / 1000).toFixed(1)}s`;
-    await new Promise((r) => setTimeout(r, intervaloMs));
-  }
-
+// Classificação em si (POST /api/reconhecer-palavra + exibir resultado) —
+// extraída pra ser compartilhada entre o clique manual e a detecção
+// automática de início/fim, que precisam do mesmo tratamento de resposta.
+async function classificarFrames(frames) {
   resultado.textContent = "Classificando...";
   try {
     const resposta = await fetch("/api/reconhecer-palavra", {
@@ -647,9 +677,91 @@ async function gravarEClassificarPalavra() {
   } catch (erro) {
     resultado.textContent = "Erro ao consultar o servidor.";
   }
+}
+
+async function gravarEClassificarPalavra() {
+  if (gravandoPalavra) return;
+  if (!streamAtual) {
+    resultado.textContent = 'Câmera está desligada — clique em "Ligar câmera" primeiro.';
+    return;
+  }
+  gravandoPalavra = true;
+  btnGravarPalavra.disabled = true;
+  const frames = [];
+  const duracaoMs = 2000;
+  const intervaloMs = 100; // ~20 frames em 2s
+  const inicio = Date.now();
+
+  while (Date.now() - inicio < duracaoMs) {
+    frames.push(capturarFrameBase64());
+    resultado.textContent = `Gravando... ${((Date.now() - inicio) / 1000).toFixed(1)}s`;
+    await new Promise((r) => setTimeout(r, intervaloMs));
+  }
+
+  await classificarFrames(frames);
 
   gravandoPalavra = false;
   btnGravarPalavra.disabled = false;
+}
+
+// --- Detecção automática de início/fim (sem clicar no botão) ---------------
+function resetarBufferAuto() {
+  bufferAutoPalavra = [];
+  pontoAnteriorAuto = null;
+  paradoDesdeAuto = null;
+  semMaoDesdeAuto = null;
+  visorScanner.classList.remove("analisando");
+}
+
+async function processarDeteccaoAutomaticaPalavra(dados, frameBase64) {
+  if (!dados.detectado) {
+    if (bufferAutoPalavra.length === 0) return; // ocioso, mão nunca apareceu
+
+    if (semMaoDesdeAuto === null) semMaoDesdeAuto = Date.now();
+    if (Date.now() - semMaoDesdeAuto > SEM_MAO_MAX_AUTO_MS) {
+      const frames = bufferAutoPalavra;
+      const bufferSuficiente = frames.length >= MIN_FRAMES_AUTO;
+      resetarBufferAuto();
+      if (bufferSuficiente) {
+        gravandoPalavra = true;
+        await classificarFrames(frames);
+        gravandoPalavra = false;
+      }
+    }
+    return;
+  }
+
+  semMaoDesdeAuto = null;
+  if (bufferAutoPalavra.length === 0) visorScanner.classList.add("analisando");
+  bufferAutoPalavra.push(frameBase64);
+  resultado.textContent = `Detectando sinal automaticamente... (${bufferAutoPalavra.length} quadros)`;
+
+  const pontoAtual = dados.landmarks ? dados.landmarks[9] : null;
+  if (pontoAtual && pontoAnteriorAuto) {
+    const dx = pontoAtual[0] - pontoAnteriorAuto[0];
+    const dy = pontoAtual[1] - pontoAnteriorAuto[1];
+    const deslocamento = Math.sqrt(dx * dx + dy * dy);
+    if (deslocamento > LIMIAR_MOVIMENTO_AUTO) {
+      paradoDesdeAuto = null;
+    } else if (paradoDesdeAuto === null) {
+      paradoDesdeAuto = Date.now();
+    }
+  }
+  pontoAnteriorAuto = pontoAtual;
+
+  const pronto =
+    bufferAutoPalavra.length >= MAX_FRAMES_AUTO ||
+    (bufferAutoPalavra.length >= MIN_FRAMES_AUTO &&
+      paradoDesdeAuto !== null &&
+      Date.now() - paradoDesdeAuto > PARADO_MAX_AUTO_MS);
+
+  if (pronto) {
+    const frames = bufferAutoPalavra;
+    resetarBufferAuto();
+    gravandoPalavra = true;
+    await classificarFrames(frames);
+    gravandoPalavra = false;
+  }
 }
 
 abas.forEach((aba) => {
@@ -660,8 +772,15 @@ abas.forEach((aba) => {
     modoAlfabetoEl.hidden = modoAtual !== "alfabeto";
     modoPalavraEl.hidden = modoAtual !== "palavra";
     resultado.textContent = "";
+    resetarBufferAuto(); // troca de aba no meio de um sinal em detecção automática não deve deixar buffer "fantasma"
   });
 });
+
+if (chkDeteccaoAutomatica) {
+  chkDeteccaoAutomatica.addEventListener("change", () => {
+    if (!chkDeteccaoAutomatica.checked) resetarBufferAuto();
+  });
+}
 
 if (btnGravarPalavra) btnGravarPalavra.addEventListener("click", gravarEClassificarPalavra);
 if (btnApagarLetra) btnApagarLetra.addEventListener("click", apagarUltimaLetra);
