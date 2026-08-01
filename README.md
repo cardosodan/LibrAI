@@ -233,6 +233,49 @@ MESMA foto comparada contra o padrão de "A" dá 0% e uma dica coerente
 ("dedo mais estendido que o esperado — curve mais", já que A é um punho
 fechado e a mão na foto está com os dedos abertos fazendo B).
 
+## Desambiguação A/S (usuário reportou confusão constante ao vivo)
+
+Usuário reportou que as letras A e S se confundem o tempo todo durante o
+uso real. Investigado com dados reais (não suposição) antes de qualquer
+mudança de código:
+
+1. **A e S são genuinamente quase a mesma pose.** Comparando os centroides
+   de TODAS as 210 combinações possíveis de letras do alfabeto, A-S é o
+   **9º par mais próximo** — uma das duas ou três poses mais fisicamente
+   parecidas que existem no alfabeto inteiro (ambas são o mesmo punho
+   fechado). Ponto a ponto, a ÚNICA diferença real está na **ponta do
+   polegar** (distância 0.72 entre os centroides nesse ponto, contra
+   ~0.05-0.3 em todos os outros 20) — anatomicamente correto: A tem o
+   polegar ao lado do punho, S tem o polegar cruzado na frente dos dedos.
+2. **Não era um problema do modelo/dataset** — no conjunto de teste
+   (imagens limpas), A e S têm F1 excelente (0,99 e 0,98) e raramente se
+   confundem entre si. A confusão relatada é um fenômeno de CAPTURA AO
+   VIVO (iluminação, distância da câmera, jitter do MediaPipe em dedos
+   curvados/ocultos), não visível nas fotos estáticas de treino.
+3. **Tentativa descartada, documentada por honestidade**: usar só a
+   distância até a ponta do polegar como critério de desempate direto
+   (a abordagem óbvia, já que é o único ponto que difere) foi testada com
+   ruído sintético simulando jitter de câmera — resultado neutro/levemente
+   PIOR que confiar no modelo original. Um único ponto 3D é sensível
+   demais a ruído sozinho; jogar fora as outras 20 dimensões (que ainda
+   carregam sinal fraco, mas real) piora mais do que ajuda.
+4. **O que funcionou**: `src/sinalizai/desambiguacao_alfabeto.py` treina um
+   classificador binário pequeno (Random Forest, só A-vs-S, usando as 63
+   features normais — não só o polegar) a partir do mesmo CSV de treino.
+   `/api/reconhecer-letra` só o consulta quando o modelo principal (21
+   classes) JÁ está em dúvida entre exatamente A e S (top-2 previsões com
+   confiança próxima) — no resto do tempo é um no-op puro, não afeta
+   nenhuma outra letra nem os casos claros de A/S. Testado com o mesmo
+   ruído sintético: neutro em condições limpas, ganho líquido real (mais
+   ajuda que atrapalha) em condições mais ruidosas.
+
+**Honestidade sobre o tamanho do ganho**: é modesto, não uma correção
+mágica — A e S continuam sendo o par mais fisicamente parecido do
+alfabeto, e nenhum pós-processamento troca isso. Se a confusão persistir
+muito depois desse ajuste, o próximo passo real seria mais dados de treino
+com variação deliberada de ângulo/distância pro polegar especificamente,
+não mais engenharia em cima do modelo já treinado.
+
 ## Resultados reais (alfabeto)
 
 **Atualizado após expandir de 15 pra 21 letras** (mesclando o dataset original
@@ -458,13 +501,27 @@ SinalizAI/
 - **Modelo de palavras sem dado real ainda** — código completo e testado
   mecanicamente, mas nenhum vocabulário genuíno de Libras foi gravado/
   treinado neste repositório até agora.
-- **Sem expressões não-manuais** (sobrancelha, boca, direção do olhar) — a
-  gramática de Libras usa isso pra negação, pergunta, intensidade etc.; este
-  projeto reconhece só a configuração manual/corporal.
-- **Reconhecimento de palavra não é contínuo** — a demo exige apertar um
-  botão e gravar uma janela fixa de 2s, não segmenta sinais dentro de um
-  vídeo corrido (esse é um problema de pesquisa em aberto — "continuous
-  sign language recognition" — de propósito fora do escopo de um MVP solo).
+- **Expressões não-manuais só como heurística, não gramática de verdade** —
+  o pipeline de palavras extrai um subconjunto do rosto e calcula uma pista
+  geométrica (sobrancelha levantada / boca aberta, ver seção acima), mas
+  isso é uma aproximação simples pra exibir no modo dev, não um
+  classificador treinado de expressão nem uma regra gramatical de negação/
+  pergunta de verdade.
+- **Reconhecimento de palavra não é continuous sign spotting de verdade** —
+  a segmentação automática de início/fim (ver seção acima) é uma heurística
+  de movimento (mão aparece/some, fica parada), não um modelo treinado de
+  detecção contínua de sinal — isso continua um problema de pesquisa em
+  aberto na área, de propósito fora do escopo de um MVP solo. O botão manual
+  de gravação (janela fixa de 2s) continua existindo como alternativa.
+- **Duas letras quase idênticas na forma da mão (A e S) ainda se confundem
+  às vezes ao vivo** — investigado com dados reais: A-S é o 9º par de
+  letras mais próximo entre as 210 combinações possíveis do alfabeto (a
+  ÚNICA diferença de verdade está na ponta do polegar). Um classificador
+  binário dedicado (`src/sinalizai/desambiguacao_alfabeto.py`) ajuda quando
+  o modelo principal já está em dúvida entre exatamente essas duas — testado
+  com ruído sintético simulando câmera ao vivo, mostrou ganho real mas
+  modesto (não uma correção mágica). Em condições de luz ruim ou mão longe
+  da câmera, ainda é a confusão mais provável do alfabeto inteiro.
 - **Tradução só português → inglês por enquanto** — a pedido explícito, não
   limitação técnica (ver seção "Tradução ao vivo" — adicionar idioma é
   trivial).

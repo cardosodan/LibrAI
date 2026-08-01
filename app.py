@@ -29,7 +29,7 @@ from flask import Flask, jsonify, render_template, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
-from sinalizai import config, feedback_aprendizado, traducao_gramatical
+from sinalizai import config, desambiguacao_alfabeto, feedback_aprendizado, traducao_gramatical
 from sinalizai.landmarks import HandLandmarkExtractor, HolisticSequenceExtractor
 from sinalizai.modelo_dinamico import ClassificadorPalavrasLSTM
 
@@ -133,10 +133,18 @@ def reconhecer_letra():
         for i in ordem[:3]
     ]
 
+    # Desempate geométrico pra pares de letras quase idênticos na forma da
+    # mão (hoje só A/S — ver desambiguacao_alfabeto.py pro porquê e os testes
+    # que validaram isso). Só muda a resposta quando o modelo principal já
+    # estava em dúvida entre exatamente essas duas letras; no resto do tempo
+    # é um no-op.
+    desambiguado = desambiguacao_alfabeto.desambiguar(vetor, candidatos)
+    letra_final, confianca_final = desambiguado or (modelo.classes_[indice], float(probs[indice]))
+
     resposta = {
         "detectado": True,
-        "letra": modelo.classes_[indice],
-        "confianca": float(probs[indice]),
+        "letra": letra_final,
+        "confianca": confianca_final,
         "candidatos": candidatos,
         "landmarks": pontos,
     }
