@@ -2,12 +2,15 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const overlayEsqueleto = document.getElementById("overlay-esqueleto");
 const overlay = document.getElementById("overlay");
+const overlayTexto = document.getElementById("overlay-texto");
+const visorScanner = document.getElementById("visor-scanner");
 const resultado = document.getElementById("resultado");
 const btnGravarPalavra = document.getElementById("btn-gravar-palavra");
 const abas = document.querySelectorAll(".aba");
 const modoAlfabetoEl = document.getElementById("modo-alfabeto");
 const modoPalavraEl = document.getElementById("modo-palavra");
 const estadoConexao = document.getElementById("estado-conexao");
+const estadoConexaoTexto = document.getElementById("estado-conexao-texto");
 
 const elLetraAtual = document.getElementById("letra-atual");
 const elPalavraAtual = document.getElementById("palavra-atual");
@@ -81,19 +84,19 @@ async function iniciarCamera() {
     overlayEsqueleto.width = canvas.width;
     overlayEsqueleto.height = canvas.height;
     atualizarEspelhamento();
-    overlay.style.display = "block";
-    overlay.textContent = "Câmera pronta";
+    overlay.style.display = "flex";
+    overlayTexto.textContent = "Câmera pronta";
     setTimeout(() => (overlay.style.display = "none"), 1500);
     if (btnCamera) {
-      btnCamera.textContent = "Parar câmera";
+      btnCamera.textContent = "PARAR CÂMERA";
       btnCamera.classList.remove("desligada");
     }
     iniciarPollingAlfabeto();
   } catch (erro) {
-    overlay.style.display = "block";
-    overlay.textContent = "Não consegui acessar a câmera: " + erro.message;
+    overlay.style.display = "flex";
+    overlayTexto.textContent = "Não consegui acessar a câmera: " + erro.message;
     if (btnCamera) {
-      btnCamera.textContent = "Tentar novamente";
+      btnCamera.textContent = "TENTAR NOVAMENTE";
       btnCamera.classList.add("desligada");
     }
   }
@@ -116,12 +119,13 @@ function pararCamera() {
   video.srcObject = null;
   ctxEsqueleto.clearRect(0, 0, overlayEsqueleto.width, overlayEsqueleto.height);
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-  overlay.style.display = "block";
-  overlay.textContent = "Câmera desligada";
+  overlay.style.display = "flex";
+  overlayTexto.textContent = "Câmera desligada";
   if (btnCamera) {
-    btnCamera.textContent = "Ligar câmera";
+    btnCamera.textContent = "LIGAR CÂMERA";
     btnCamera.classList.add("desligada");
   }
+  visorScanner.classList.remove("analisando", "confirmado");
 }
 
 function alternarCamera() {
@@ -249,6 +253,8 @@ function fecharPalavraAtual() {
   letraCandidata = null;
   contagemCandidata = 0;
   barraProgressoFill.style.width = "0%";
+  barraProgressoFill.classList.remove("completa");
+  visorScanner.classList.remove("analisando", "confirmado");
   atualizarUiFrase();
 }
 
@@ -268,6 +274,8 @@ function novaFrase() {
   contagemCandidata = 0;
   semMaoDesde = null;
   barraProgressoFill.style.width = "0%";
+  barraProgressoFill.classList.remove("completa");
+  visorScanner.classList.remove("analisando", "confirmado");
   elLetraAtual.textContent = "—";
   elFraseTraduzida.textContent = "—";
   atualizarUiFrase();
@@ -295,12 +303,12 @@ function atualizarPainelDev(candidatos) {
 function marcarConexao(ok) {
   if (ok) {
     falhasConsecutivas = 0;
-    estadoConexao.textContent = "● conectado";
+    estadoConexaoTexto.textContent = "conectado";
     estadoConexao.className = "estado-conexao ok";
   } else {
     falhasConsecutivas++;
     if (falhasConsecutivas >= FALHAS_PARA_MOSTRAR_ERRO) {
-      estadoConexao.textContent = "● sem conexão com o servidor";
+      estadoConexaoTexto.textContent = "sem conexão com o servidor";
       estadoConexao.className = "estado-conexao erro";
     }
   }
@@ -314,6 +322,8 @@ function processarDeteccaoLetra(dados) {
     letraCandidata = null;
     contagemCandidata = 0;
     barraProgressoFill.style.width = "0%";
+    barraProgressoFill.classList.remove("completa");
+    visorScanner.classList.remove("analisando", "confirmado");
     letraConfirmada = null;
     if (semMaoDesde === null) semMaoDesde = Date.now();
 
@@ -339,13 +349,31 @@ function processarDeteccaoLetra(dados) {
   } else {
     letraCandidata = dados.letra;
     contagemCandidata = 1;
+    barraProgressoFill.classList.remove("completa");
+    visorScanner.classList.remove("confirmado");
   }
   barraProgressoFill.style.width = `${(contagemCandidata / JANELA_ESTABILIDADE) * 100}%`;
 
-  if (contagemCandidata >= JANELA_ESTABILIDADE && letraCandidata !== letraConfirmada) {
+  // Se a letra em vista já é a última confirmada (usuário ainda segurando a
+  // mesma pose), não reativa "analisando" — senão o flash de confirmação
+  // seria interrompido no frame seguinte, 180ms depois.
+  const jaConfirmadaEstaLetra = letraCandidata === letraConfirmada;
+  if (!jaConfirmadaEstaLetra) {
+    visorScanner.classList.add("analisando");
+  }
+
+  if (contagemCandidata >= JANELA_ESTABILIDADE && !jaConfirmadaEstaLetra) {
     letraConfirmada = letraCandidata;
     palavraAtual += letraConfirmada;
     atualizarUiFrase();
+
+    // Flash rápido em accent-confirm nos brackets (spec: "faz um flash rápido
+    // antes de voltar ao repouso") — some sozinho depois de ~500ms, sem
+    // precisar de outro evento pra "desligar" o estado.
+    barraProgressoFill.classList.add("completa");
+    visorScanner.classList.remove("analisando");
+    visorScanner.classList.add("confirmado");
+    setTimeout(() => visorScanner.classList.remove("confirmado"), 500);
   }
 }
 
