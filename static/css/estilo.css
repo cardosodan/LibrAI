@@ -38,6 +38,24 @@
   --space-16: 64px;
 }
 
+/* Tema claro — mesma hierarquia (1 cor dominante, ouro/verde de estado, azul
+   só detalhe), luminância invertida. Ativado via [data-theme="light"] no
+   <html>, alternável em runtime (botão no header) e persistido no
+   localStorage. Contraste checado de novo pros 3 accents nesse fundo claro
+   — o ouro do tema escuro (#D9A62E) falhava aqui (3.77:1), por isso é mais
+   escuro nesta variação (#8A5F0C, 5.0:1+). */
+:root[data-theme="light"] {
+  --bg-base: #F5F2E9;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #E8E2D0;
+  --accent-signal: #8A5F0C;
+  --accent-confirm: #0F6B4A;
+  --accent-detail: #2B4C7E;
+  --text-primary: #1D1B14;
+  --text-muted: #6B6656;
+  --text-sobre-accent: #FFFFFF; /* invertido: aqui accent-signal é escuro, texto precisa ser claro */
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -818,6 +836,206 @@ footer a {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* --- Alternador de tema claro/escuro -------------------------------------- */
+.btn-tema {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 6px;
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--fonte-hud);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.btn-tema:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+/* --- Scanline sutil na moldura da câmera ---------------------------------- */
+.visor-scanner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--accent-signal) 6%, transparent) 50%,
+    transparent 100%
+  );
+  height: 40%;
+  animation: varrer-scanline 5s linear infinite;
+}
+
+@keyframes varrer-scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(250%); }
+}
+
+/* --- Modo tela cheia da câmera --------------------------------------------- */
+.painel-camera.tela-cheia {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--bg-base);
+  padding: var(--space-4);
+}
+
+.painel-camera.tela-cheia .visor-scanner { height: 100%; }
+
+.btn-tela-cheia {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+}
+
+/* --- Toast de letra confirmada --------------------------------------------- */
+.toast-letra {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, 0);
+  font-family: var(--fonte-hud);
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--accent-confirm);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+}
+
+.toast-letra.animar {
+  animation: subir-e-sumir 0.9s ease-out forwards;
+}
+
+@keyframes subir-e-sumir {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(0.9); }
+  20% { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(1); }
+}
+
+/* --- Sparkline de confiança ------------------------------------------------ */
+.sparkline-caixa {
+  margin-top: var(--space-2);
+}
+
+.sparkline-caixa canvas {
+  display: block;
+  width: 100%;
+  height: 28px;
+}
+
+/* --- Indicador de FPS/latência (modo dev) ---------------------------------- */
+.telemetria-dev {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+  font-family: var(--fonte-hud);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.telemetria-dev b { color: var(--text-primary); font-weight: 500; }
+
+/* --- Botão de copiar frase (com check animado) ----------------------------- */
+#btn-copiar-frase.copiado {
+  color: var(--accent-confirm);
+  border-color: var(--accent-confirm);
+}
+
+/* --- Selo de progresso no guia do alfabeto --------------------------------- */
+.guia-item {
+  position: relative;
+}
+
+.guia-item .selo-praticada {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-confirm);
+  color: var(--bg-base);
+  font-size: 11px;
+  font-weight: 700;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.guia-item.praticada .selo-praticada { display: flex; }
+
+.guia-item { cursor: pointer; }
+.guia-item:hover { border-color: var(--accent-detail); }
+
+/* --- Modal da letra do guia ------------------------------------------------- */
+.modal-fundo {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-base) 80%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.modal-fundo[hidden] { display: none; }
+
+.modal-caixa {
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 8px;
+  padding: var(--space-6);
+  text-align: center;
+  max-width: 280px;
+}
+
+.modal-caixa img {
+  width: 160px;
+  height: 160px;
+  border-radius: 8px;
+  object-fit: cover;
+  margin-bottom: var(--space-3);
+}
+
+.modal-caixa .letra-grande {
+  font-family: var(--fonte-hud);
+  font-size: 2rem;
+  color: var(--accent-detail);
+  margin-bottom: var(--space-2);
+}
+
+.modal-fechar {
+  margin-top: var(--space-4);
+}
+
+/* --- Feedback de aprendizado (IA) ------------------------------------------ */
+.feedback-aprendizado {
+  margin-top: var(--space-3);
+  background: var(--bg-base);
+  border: 1px solid var(--accent-detail);
+  border-radius: 6px;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.feedback-aprendizado b { color: var(--text-primary); }
+
+/* --- Pista facial (heurística em tempo real, modo dev) ---------------------- */
+.pista-facial {
+  margin-top: var(--space-2);
+  font-family: var(--fonte-hud);
+  font-size: 0.7rem;
+  color: var(--accent-detail);
+  min-height: 1em;
+}
+
 /* --- Responsivo (celular, testado mentalmente a partir de 375px) --------- */
 @media (max-width: 640px) {
   header { padding: var(--space-6) var(--space-4) var(--space-3); }
@@ -831,6 +1049,8 @@ footer a {
   .grade-guia { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
   .pipeline { flex-direction: column; align-items: stretch; }
   .pipeline-conector { width: 1px; height: 16px; align-self: center; }
+  .modal-caixa { max-width: calc(100vw - 48px); }
+  .modal-caixa img { width: 120px; height: 120px; }
 }
 
 /* --- Acessibilidade: respeita a preferência de menos movimento ----------- */
@@ -841,11 +1061,15 @@ footer a {
   .spinner-mao line,
   .spinner-mao circle,
   .constelacao-ponto-sinal,
+  .visor-scanner::after,
+  .toast-letra.animar,
   #letra-atual,
   #palavra-atual,
   #frase-traduzida {
     animation: none !important;
   }
+  .visor-scanner::after { display: none; }
+  .toast-letra.animar { opacity: 0; }
   .barra-progresso-fill,
   .valor-destaque,
   .bracket,

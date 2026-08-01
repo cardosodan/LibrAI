@@ -28,6 +28,23 @@ const chkModoDev = document.getElementById("chk-modo-dev");
 const painelDev = document.getElementById("painel-dev");
 const listaHistorico = document.getElementById("lista-historico");
 
+const btnTema = document.getElementById("btn-tema");
+const toastLetra = document.getElementById("toast-letra");
+const sparklineCanvas = document.getElementById("sparkline-confianca");
+const telemetriaDev = document.getElementById("telemetria-dev");
+const telemetriaFps = document.getElementById("telemetria-fps");
+const telemetriaLatencia = document.getElementById("telemetria-latencia");
+const btnTelaCheia = document.getElementById("btn-tela-cheia");
+const painelCamera = document.querySelector(".painel-camera");
+const btnCopiarFrase = document.getElementById("btn-copiar-frase");
+const modalLetra = document.getElementById("modal-letra");
+const modalLetraTitulo = document.getElementById("modal-letra-titulo");
+const modalLetraImg = document.getElementById("modal-letra-img");
+const modalLetraStatus = document.getElementById("modal-letra-status");
+const btnFecharModal = document.getElementById("btn-fechar-modal");
+const feedbackAprendizado = document.getElementById("feedback-aprendizado");
+const pistaFacial = document.getElementById("pista-facial");
+
 let modoAtual = "alfabeto";
 let poolingAtivo = false;
 let gravandoPalavra = false;
@@ -59,6 +76,7 @@ let ultimaTraducaoTexto = "";
 let semMaoDesde = null;
 let falhasConsecutivas = 0;
 let historicoSessao = [];
+let letrasPraticadas = new Set();
 
 // --- Esqueleto da mão (conexões padrão MediaPipe Hands, 21 pontos) --------
 const CONEXOES_MAO = [
@@ -69,6 +87,21 @@ const CONEXOES_MAO = [
   [0, 17], [17, 18], [18, 19], [19, 20], // mindinho
   [5, 9], [9, 13], [13, 17],             // palma
 ];
+
+// --- Trilha de movimento (modo dev): guarda as últimas posições do centro
+// da mão (base do dedo médio, ponto 9) e desenha com opacidade decrescente,
+// como um rastro de cometa — só ativo junto com o esqueleto em modo dev.
+const TAMANHO_TRILHA = 12;
+let trilhaMao = [];
+
+// --- Sparkline de confiança: rolling window das últimas leituras ----------
+const TAMANHO_SPARKLINE = 40;
+let historicoConfianca = [];
+const ctxSparkline = sparklineCanvas ? sparklineCanvas.getContext("2d") : null;
+
+// --- Telemetria de FPS/latência (modo dev) --------------------------------
+let ultimosTemposPoll = [];
+const JANELA_TELEMETRIA = 20;
 
 async function iniciarCamera() {
   try {
@@ -155,13 +188,36 @@ function capturarFrameBase64() {
 // cores estavam hardcoded em tons antigos (azul/verde de antes da troca de
 // paleta), nunca acompanharam a identidade nova. Traços finos e cor única
 // (--accent-signal a baixa opacidade) agora, coerente com o resto do site.
+// Lê o valor AO VIVO de uma CSS custom property — canvas 2D não entende
+// var(--token) direto, e um hex hardcoded aqui já causou bug real antes (o
+// esqueleto ficava com cor de uma paleta antiga depois de trocar de tema).
+// Agora, com o alternador claro/escuro, isso importa ainda mais: sem isso,
+// o overlay ficaria preso na cor de um dos dois temas.
+function corVar(nome) {
+  return getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+}
+
 function desenharEsqueleto(pontos) {
   ctxEsqueleto.clearRect(0, 0, overlayEsqueleto.width, overlayEsqueleto.height);
-  if (!pontos || !chkModoDev.checked) return;
+  if (!chkModoDev.checked) { trilhaMao = []; return; }
+  if (!pontos) return;
   const w = overlayEsqueleto.width;
   const h = overlayEsqueleto.height;
 
-  ctxEsqueleto.strokeStyle = "rgba(255, 107, 74, 0.55)"; // --accent-signal
+  // Trilha: guarda a base do dedo médio (ponto 9, o "centro" da mão) e
+  // desenha um rastro com opacidade decrescente, mais antigo = mais apagado.
+  trilhaMao.push([pontos[9][0] * w, pontos[9][1] * h]);
+  if (trilhaMao.length > TAMANHO_TRILHA) trilhaMao.shift();
+  const corSinal = corVar("--accent-signal");
+  trilhaMao.forEach(([x, y], i) => {
+    const opacidade = ((i + 1) / trilhaMao.length) * 0.3;
+    ctxEsqueleto.beginPath();
+    ctxEsqueleto.fillStyle = `color-mix(in srgb, ${corSinal} ${Math.round(opacidade * 100)}%, transparent)`;
+    ctxEsqueleto.arc(x, y, 3, 0, 2 * Math.PI);
+    ctxEsqueleto.fill();
+  });
+
+  ctxEsqueleto.strokeStyle = `color-mix(in srgb, ${corSinal} 55%, transparent)`;
   ctxEsqueleto.lineWidth = 1.5;
   CONEXOES_MAO.forEach(([a, b]) => {
     ctxEsqueleto.beginPath();
@@ -170,7 +226,7 @@ function desenharEsqueleto(pontos) {
     ctxEsqueleto.stroke();
   });
 
-  ctxEsqueleto.fillStyle = "rgba(242, 239, 233, 0.85)"; // --text-primary
+  ctxEsqueleto.fillStyle = `color-mix(in srgb, ${corVar("--text-primary")} 85%, transparent)`;
   pontos.forEach(([x, y]) => {
     ctxEsqueleto.beginPath();
     ctxEsqueleto.arc(x * w, y * h, 2.2, 0, 2 * Math.PI);
@@ -184,6 +240,133 @@ function falar(texto, idioma) {
   const utter = new SpeechSynthesisUtterance(texto);
   utter.lang = idioma;
   window.speechSynthesis.speak(utter);
+}
+
+// --- Tema claro/escuro, persistido no localStorage -------------------------
+function aplicarTema(tema) {
+  if (tema === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+    if (btnTema) btnTema.textContent = "MODO ESCURO";
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    if (btnTema) btnTema.textContent = "MODO CLARO";
+  }
+}
+
+function alternarTema() {
+  const claroAgora = document.documentElement.getAttribute("data-theme") === "light";
+  const novoTema = claroAgora ? "dark" : "light";
+  aplicarTema(novoTema);
+  localStorage.setItem("sinalizai-tema", novoTema);
+}
+
+// --- Toast de letra confirmada ---------------------------------------------
+function mostrarToastLetra(letra) {
+  if (!toastLetra) return;
+  toastLetra.textContent = letra;
+  toastLetra.classList.remove("animar");
+  // força reflow pra poder re-disparar a mesma animação em confirmações seguidas
+  void toastLetra.offsetWidth;
+  toastLetra.classList.add("animar");
+}
+
+// --- Sparkline de confiança --------------------------------------------
+function registrarConfianca(valor) {
+  historicoConfianca.push(valor);
+  if (historicoConfianca.length > TAMANHO_SPARKLINE) historicoConfianca.shift();
+  desenharSparkline();
+}
+
+function desenharSparkline() {
+  if (!ctxSparkline) return;
+  const larguraCss = sparklineCanvas.clientWidth || 200;
+  const alturaCss = sparklineCanvas.clientHeight || 28;
+  if (sparklineCanvas.width !== larguraCss) sparklineCanvas.width = larguraCss;
+  if (sparklineCanvas.height !== alturaCss) sparklineCanvas.height = alturaCss;
+  ctxSparkline.clearRect(0, 0, larguraCss, alturaCss);
+  if (historicoConfianca.length < 2) return;
+
+  ctxSparkline.strokeStyle = corVar("--accent-signal");
+  ctxSparkline.lineWidth = 1.5;
+  ctxSparkline.beginPath();
+  historicoConfianca.forEach((valor, i) => {
+    const x = (i / (TAMANHO_SPARKLINE - 1)) * larguraCss;
+    const y = alturaCss - valor * alturaCss;
+    if (i === 0) ctxSparkline.moveTo(x, y);
+    else ctxSparkline.lineTo(x, y);
+  });
+  ctxSparkline.stroke();
+
+  // linha de referência pontilhada no limiar mínimo de confiança
+  ctxSparkline.strokeStyle = corVar("--text-muted");
+  ctxSparkline.setLineDash([2, 3]);
+  ctxSparkline.lineWidth = 1;
+  const yLimiar = alturaCss - CONFIANCA_MINIMA * alturaCss;
+  ctxSparkline.beginPath();
+  ctxSparkline.moveTo(0, yLimiar);
+  ctxSparkline.lineTo(larguraCss, yLimiar);
+  ctxSparkline.stroke();
+  ctxSparkline.setLineDash([]);
+}
+
+// --- Telemetria de FPS/latência (modo dev) ---------------------------------
+function registrarTempoPoll(latenciaMs) {
+  ultimosTemposPoll.push(latenciaMs);
+  if (ultimosTemposPoll.length > JANELA_TELEMETRIA) ultimosTemposPoll.shift();
+  if (!chkModoDev.checked || !telemetriaDev) return;
+  telemetriaDev.hidden = false;
+  const media = ultimosTemposPoll.reduce((a, b) => a + b, 0) / ultimosTemposPoll.length;
+  telemetriaLatencia.textContent = media.toFixed(0);
+  telemetriaFps.textContent = (1000 / Math.max(media, 1)).toFixed(1);
+}
+
+// --- Modo tela cheia da câmera ----------------------------------------------
+function alternarTelaCheia() {
+  const ativo = painelCamera.classList.toggle("tela-cheia");
+  if (btnTelaCheia) btnTelaCheia.textContent = ativo ? "SAIR" : "EXPANDIR";
+}
+
+// --- Copiar frase ------------------------------------------------------------
+async function copiarFrase() {
+  const texto = [fraseAtual, ultimaTraducaoTexto].filter(Boolean).join(" / ");
+  if (!texto) return;
+  try {
+    await navigator.clipboard.writeText(texto);
+    btnCopiarFrase.classList.add("copiado");
+    const textoOriginal = btnCopiarFrase.textContent;
+    btnCopiarFrase.textContent = "COPIADO";
+    setTimeout(() => {
+      btnCopiarFrase.classList.remove("copiado");
+      btnCopiarFrase.textContent = textoOriginal;
+    }, 1500);
+  } catch (erro) {
+    resultado.textContent = "Não consegui copiar (permissão do navegador).";
+  }
+}
+
+// --- Selo de progresso no guia do alfabeto ----------------------------------
+function marcarLetraPraticada(letra) {
+  if (letrasPraticadas.has(letra)) return;
+  letrasPraticadas.add(letra);
+  const item = document.querySelector(`.guia-item[data-letra="${letra}"]`);
+  if (item) item.classList.add("praticada");
+}
+
+// --- Modal da letra do guia --------------------------------------------------
+function abrirModalLetra(item) {
+  const letra = item.dataset.letra;
+  const img = item.querySelector("img");
+  modalLetraTitulo.textContent = letra;
+  modalLetraImg.src = img.src;
+  modalLetraImg.alt = img.alt;
+  modalLetraStatus.textContent = letrasPraticadas.has(letra)
+    ? "Você já sinalizou essa letra com sucesso nesta sessão."
+    : "Ainda não sinalizada nesta sessão — tente na aba Alfabeto.";
+  modalLetra.hidden = false;
+}
+
+function fecharModalLetra() {
+  modalLetra.hidden = true;
 }
 
 function atualizarUiFrase() {
@@ -347,6 +530,7 @@ function processarDeteccaoLetra(dados) {
   semMaoDesde = null;
   desenharEsqueleto(dados.landmarks);
   elLetraAtual.textContent = `${dados.letra} (${(dados.confianca * 100).toFixed(0)}%)`;
+  registrarConfianca(dados.confianca);
 
   if (dados.confianca < CONFIANCA_MINIMA) return;
 
@@ -372,6 +556,8 @@ function processarDeteccaoLetra(dados) {
     letraConfirmada = letraCandidata;
     palavraAtual += letraConfirmada;
     atualizarUiFrase();
+    mostrarToastLetra(letraConfirmada);
+    marcarLetraPraticada(letraConfirmada);
 
     // Flash rápido em accent-confirm nos brackets (spec: "faz um flash rápido
     // antes de voltar ao repouso") — some sozinho depois de ~500ms, sem
@@ -388,6 +574,7 @@ async function iniciarPollingAlfabeto() {
   poolingAtivo = true;
   while (poolingAtivo) {
     if (modoAtual === "alfabeto" && !gravandoPalavra) {
+      const inicioPoll = performance.now();
       try {
         const frame = capturarFrameBase64();
         const resposta = await fetch("/api/reconhecer-letra", {
@@ -397,6 +584,7 @@ async function iniciarPollingAlfabeto() {
         });
         const dados = await resposta.json();
         marcarConexao(true);
+        registrarTempoPoll(performance.now() - inicioPoll);
         if (dados.erro) {
           elLetraAtual.textContent = dados.erro;
         } else {
@@ -489,7 +677,10 @@ if (chkModoDev) {
   chkModoDev.addEventListener("change", () => {
     if (!chkModoDev.checked) {
       painelDev.hidden = true;
+      if (telemetriaDev) telemetriaDev.hidden = true;
+      if (pistaFacial) pistaFacial.hidden = true;
       ctxEsqueleto.clearRect(0, 0, overlayEsqueleto.width, overlayEsqueleto.height);
+      trilhaMao = [];
     }
   });
 }
@@ -499,4 +690,23 @@ if (elFraseAtual) {
   });
 }
 
+if (btnTema) btnTema.addEventListener("click", alternarTema);
+if (btnTelaCheia) btnTelaCheia.addEventListener("click", alternarTelaCheia);
+if (btnCopiarFrase) btnCopiarFrase.addEventListener("click", copiarFrase);
+if (btnFecharModal) btnFecharModal.addEventListener("click", fecharModalLetra);
+if (modalLetra) {
+  modalLetra.addEventListener("click", (evento) => {
+    if (evento.target === modalLetra) fecharModalLetra();
+  });
+}
+document.querySelectorAll(".guia-item").forEach((item) => {
+  item.addEventListener("click", () => abrirModalLetra(item));
+});
+document.addEventListener("keydown", (evento) => {
+  if (evento.key !== "Escape") return;
+  if (modalLetra && !modalLetra.hidden) fecharModalLetra();
+  else if (painelCamera.classList.contains("tela-cheia")) alternarTelaCheia();
+});
+
+aplicarTema(localStorage.getItem("sinalizai-tema"));
 iniciarCamera();

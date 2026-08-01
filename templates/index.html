@@ -54,6 +54,7 @@
   <rect width="100%" height="100%" fill="url(#constelacao)"/>
 </svg>
 <header>
+  <button id="btn-tema" class="btn-tema" title="Alternar tema claro/escuro">MODO CLARO</button>
   <h1>SinalizAI</h1>
   <p class="subtitulo">Reconhecimento de Libras em tempo real com visão computacional</p>
   <span id="estado-conexao" class="estado-conexao ok"><span class="ponto-pulsante"></span><span id="estado-conexao-texto">conectado</span></span>
@@ -82,10 +83,12 @@
         </svg>
         <span id="overlay-texto">Iniciando câmera...</span>
       </div>
+      <span id="toast-letra" class="toast-letra" aria-hidden="true"></span>
       <div class="botoes-camera">
         <button id="btn-trocar-camera" class="btn-camera" title="Trocar câmera frontal/traseira">TROCAR</button>
         <button id="btn-camera" class="btn-camera btn-camera-principal">PARAR CÂMERA</button>
       </div>
+      <button id="btn-tela-cheia" class="btn-camera btn-tela-cheia" title="Tela cheia">EXPANDIR</button>
     </div>
   </section>
 
@@ -106,12 +109,15 @@
             <span class="rotulo">Letra atual</span>
             <span id="letra-atual" class="valor-destaque">—</span>
             <div class="barra-progresso"><div id="barra-progresso-fill" class="barra-progresso-fill"></div></div>
+            <div class="sparkline-caixa"><canvas id="sparkline-confianca"></canvas></div>
           </div>
           <div class="linha-construtor">
             <span class="rotulo">Palavra</span>
             <span id="palavra-atual" class="valor-destaque">_</span>
           </div>
         </div>
+
+        <div id="feedback-aprendizado" class="feedback-aprendizado" hidden></div>
 
         <div class="frase-box">
           <span class="rotulo">Frase (Português) — editável</span>
@@ -127,13 +133,19 @@
           <button id="btn-fechar-palavra">FECHAR PALAVRA</button>
           <button id="btn-traduzir-agora">TRADUZIR AGORA</button>
           <button id="btn-repetir-audio">OUVIR DE NOVO</button>
+          <button id="btn-copiar-frase">COPIAR FRASE</button>
           <button id="btn-nova-frase">NOVA FRASE</button>
         </div>
 
         <label class="toggle-dev">
-          <input type="checkbox" id="chk-modo-dev"> Modo desenvolvedor (candidatos, confiança e esqueleto da mão)
+          <input type="checkbox" id="chk-modo-dev"> Modo desenvolvedor (candidatos, confiança, esqueleto da mão, telemetria)
         </label>
         <div id="painel-dev" class="painel-dev" hidden></div>
+        <div id="telemetria-dev" class="telemetria-dev" hidden>
+          <span>FPS: <b id="telemetria-fps">—</b></span>
+          <span>Latência: <b id="telemetria-latencia">—</b> ms</span>
+        </div>
+        <div id="pista-facial" class="pista-facial" hidden></div>
       {% else %}
         <p class="aviso">Modelo do alfabeto ainda não foi treinado neste servidor.</p>
       {% endif %}
@@ -171,13 +183,23 @@
     <h2>Guia do alfabeto suportado</h2>
     <div class="grade-guia">
       {% for letra in letras %}
-      <div class="guia-item">
+      <div class="guia-item" data-letra="{{ letra }}">
         <img src="{{ url_for('static', filename='img/alfabeto_referencia/' ~ letra ~ '.jpg') }}" alt="Sinal da letra {{ letra }} em Libras" loading="lazy">
         <span>{{ letra }}</span>
+        <span class="selo-praticada" title="Já sinalizada com sucesso nesta sessão">✓</span>
       </div>
       {% endfor %}
     </div>
   </section>
+
+  <div id="modal-letra" class="modal-fundo" hidden>
+    <div class="modal-caixa">
+      <span class="letra-grande" id="modal-letra-titulo">—</span>
+      <img id="modal-letra-img" src="" alt="">
+      <p id="modal-letra-status" class="letras-suportadas"></p>
+      <button class="btn-camera modal-fechar" id="btn-fechar-modal">FECHAR</button>
+    </div>
+  </div>
 
   <div class="separador-simples" aria-hidden="true"></div>
 
@@ -188,7 +210,7 @@
       <div class="pipeline-conector" aria-hidden="true"></div>
       <div class="pipeline-passo"><span class="pipeline-num">02</span>MEDIAPIPE<small>21 pontos da mão</small></div>
       <div class="pipeline-conector" aria-hidden="true"></div>
-      <div class="pipeline-passo"><span class="pipeline-num">03</span>MODELO ML<small>Regressão Logística</small></div>
+      <div class="pipeline-passo"><span class="pipeline-num">03</span>MODELO ML<small>Random Forest</small></div>
       <div class="pipeline-conector" aria-hidden="true"></div>
       <div class="pipeline-passo"><span class="pipeline-num">04</span>LETRA → PALAVRA → FRASE</div>
       <div class="pipeline-conector" aria-hidden="true"></div>
@@ -197,10 +219,12 @@
       <div class="pipeline-passo"><span class="pipeline-num">06</span>VOZ</div>
     </div>
     <p>
-      Cada letra do alfabeto manual de Libras é reconhecida a partir de 21 pontos-chave
-      da mão extraídos pelo MediaPipe, classificados por um modelo de Regressão Logística
-      treinado com <a href="https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset" target="_blank" rel="noopener">4.411 imagens reais</a>
-      (97,8% de F1 macro no teste). Letras confirmadas se juntam em palavras e frases, que
+      Cada uma das 21 letras do alfabeto manual de Libras é reconhecida a partir de
+      21 pontos-chave da mão extraídos pelo MediaPipe, classificados por um modelo
+      Random Forest treinado com
+      <a href="https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset" target="_blank" rel="noopener">imagens reais</a>
+      da UNIVALI e do Roboflow combinadas (~6.100 no total, 93,9% de F1 macro no
+      teste). Letras confirmadas se juntam em palavras e frases, que
       são traduzidas pro inglês e faladas em voz alta — tudo rodando localmente, sem
       nenhuma API de IA generativa paga. Detalhes técnicos completos no README do projeto.
     </p>
