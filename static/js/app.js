@@ -149,14 +149,20 @@ function capturarFrameBase64() {
   return canvas.toDataURL("image/jpeg", 0.7);
 }
 
+// O overlay do esqueleto só aparece em Modo Desenvolvedor — por padrão a
+// câmera fica limpa. Isso corrige dois problemas reais de uma vez: (1) o
+// desenho competia visualmente com a leitura do próprio gesto, e (2) as
+// cores estavam hardcoded em tons antigos (azul/verde de antes da troca de
+// paleta), nunca acompanharam a identidade nova. Traços finos e cor única
+// (--accent-signal a baixa opacidade) agora, coerente com o resto do site.
 function desenharEsqueleto(pontos) {
   ctxEsqueleto.clearRect(0, 0, overlayEsqueleto.width, overlayEsqueleto.height);
-  if (!pontos) return;
+  if (!pontos || !chkModoDev.checked) return;
   const w = overlayEsqueleto.width;
   const h = overlayEsqueleto.height;
 
-  ctxEsqueleto.strokeStyle = "rgba(108, 140, 255, 0.9)";
-  ctxEsqueleto.lineWidth = 2;
+  ctxEsqueleto.strokeStyle = "rgba(255, 107, 74, 0.55)"; // --accent-signal
+  ctxEsqueleto.lineWidth = 1.5;
   CONEXOES_MAO.forEach(([a, b]) => {
     ctxEsqueleto.beginPath();
     ctxEsqueleto.moveTo(pontos[a][0] * w, pontos[a][1] * h);
@@ -164,10 +170,10 @@ function desenharEsqueleto(pontos) {
     ctxEsqueleto.stroke();
   });
 
-  ctxEsqueleto.fillStyle = "#3ddc84";
+  ctxEsqueleto.fillStyle = "rgba(242, 239, 233, 0.85)"; // --text-primary
   pontos.forEach(([x, y]) => {
     ctxEsqueleto.beginPath();
-    ctxEsqueleto.arc(x * w, y * h, 4, 0, 2 * Math.PI);
+    ctxEsqueleto.arc(x * w, y * h, 2.2, 0, 2 * Math.PI);
     ctxEsqueleto.fill();
   });
 }
@@ -481,7 +487,10 @@ if (btnCamera) btnCamera.addEventListener("click", alternarCamera);
 if (btnTrocarCamera) btnTrocarCamera.addEventListener("click", trocarCameraFrontalTraseira);
 if (chkModoDev) {
   chkModoDev.addEventListener("change", () => {
-    if (!chkModoDev.checked) painelDev.hidden = true;
+    if (!chkModoDev.checked) {
+      painelDev.hidden = true;
+      ctxEsqueleto.clearRect(0, 0, overlayEsqueleto.width, overlayEsqueleto.height);
+    }
   });
 }
 if (elFraseAtual) {

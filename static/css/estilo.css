@@ -10,6 +10,20 @@
   --fonte-display: "Space Grotesk", "Segoe UI", sans-serif;
   --fonte-corpo: "Inter", "Segoe UI", sans-serif;
   --fonte-hud: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Escala de espaçamento em múltiplos de 4px (convenção Tailwind) — todo
+     padding/margin/gap do arquivo usa um destes tokens, nunca um número
+     solto, pra manter o ritmo vertical/horizontal consistente. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
 }
 
 * { box-sizing: border-box; }
@@ -20,6 +34,7 @@ body {
   color: var(--text-primary);
   font-family: var(--fonte-corpo);
   font-weight: 400;
+  line-height: 1.5;
   min-height: 100vh;
 }
 
@@ -28,22 +43,38 @@ h1, h2 {
   font-weight: 700;
 }
 
-a { color: var(--accent-signal); }
+a {
+  color: var(--accent-signal);
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+a:hover { opacity: 0.75; text-decoration: underline; }
 
 /* Foco de teclado visível em todo elemento interativo — nunca o outline
-   padrão do navegador nem "nenhum foco visível". */
+   padrão do navegador nem "nenhum foco visível" (acessibilidade é central
+   num produto de Libras, não um detalhe). */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+label:focus-within {
   outline: 2px solid var(--accent-signal);
   outline-offset: 2px;
+}
+
+button {
+  transition: transform 0.1s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 /* --- Header + motivo de assinatura (esqueleto de mão) -------------------- */
 header {
   position: relative;
-  padding: 2.2rem 1.5rem 1.2rem;
+  padding: var(--space-8) var(--space-6) var(--space-5);
   text-align: center;
   overflow: hidden;
 }
@@ -94,15 +125,16 @@ header h1 {
 
 .subtitulo {
   color: var(--text-muted);
-  margin-top: 0.4rem;
+  margin-top: var(--space-2);
   font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .estado-conexao {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  margin-top: 0.8rem;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
   font-family: var(--fonte-hud);
   font-size: 0.75rem;
   letter-spacing: 0.04em;
@@ -137,7 +169,7 @@ header h1 {
 .separador-pontos {
   flex: 1 1 100%;
   height: 4px;
-  margin: 0.2rem 0;
+  margin: var(--space-1) 0;
   background-image: radial-gradient(circle, var(--text-muted) 1.4px, transparent 1.4px);
   background-size: 14px 4px;
   background-repeat: repeat-x;
@@ -148,10 +180,10 @@ header h1 {
 main {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: var(--space-6);
   max-width: 1100px;
   margin: 0 auto;
-  padding: 1rem 1.5rem 3rem;
+  padding: var(--space-4) var(--space-6) var(--space-12);
 }
 
 /* --- Visor da câmera: viewfinder de scanner, não um <div> genérico -------- */
@@ -185,16 +217,16 @@ main {
 
 .bracket {
   position: absolute;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border: 2px solid var(--text-muted);
   transition: border-color 0.2s ease;
 }
 
-.bracket-tl { top: 10px; left: 10px; border-right: none; border-bottom: none; }
-.bracket-tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
-.bracket-bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
-.bracket-br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+.bracket-tl { top: var(--space-3); left: var(--space-3); border-right: none; border-bottom: none; }
+.bracket-tr { top: var(--space-3); right: var(--space-3); border-left: none; border-bottom: none; }
+.bracket-bl { bottom: var(--space-3); left: var(--space-3); border-right: none; border-top: none; }
+.bracket-br { bottom: var(--space-3); right: var(--space-3); border-left: none; border-top: none; }
 
 /* Estado "analisando": brackets pulsam em coral enquanto uma letra acumula
    leituras estáveis, mas ainda não foi confirmada. */
@@ -221,13 +253,13 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.8rem;
+  gap: var(--space-3);
   background: rgba(11, 14, 20, 0.75);
   color: var(--text-muted);
   font-family: var(--fonte-hud);
   font-size: 0.9rem;
   text-align: center;
-  padding: 1rem;
+  padding: var(--space-4);
 }
 
 .spinner-mao {
@@ -265,15 +297,15 @@ main {
 
 .botoes-camera {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: var(--space-3);
+  right: var(--space-3);
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   z-index: 2;
 }
 
 .btn-camera {
-  padding: 0.5rem 0.8rem;
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-elevated);
   color: var(--text-primary);
   border: 1px solid var(--bg-elevated);
@@ -293,12 +325,17 @@ main {
   font-weight: 500;
 }
 
-.btn-camera-principal:hover { background: var(--accent-signal); opacity: 0.9; }
+.btn-camera-principal:hover { opacity: 0.88; border-color: var(--accent-signal); }
 
 .btn-camera-principal.desligada {
   background: transparent;
   border: 1px solid var(--accent-confirm);
   color: var(--accent-confirm);
+}
+
+.btn-camera-principal.desligada:hover {
+  background: rgba(111, 231, 183, 0.1);
+  opacity: 1;
 }
 
 /* --- Painel de status: cartão "instrumento" ------------------------------- */
@@ -307,18 +344,18 @@ main {
   background: var(--bg-surface);
   border: 1px solid var(--bg-elevated);
   border-radius: 8px;
-  padding: 1.2rem;
+  padding: var(--space-5);
 }
 
 .abas {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
 .aba {
   flex: 1;
-  padding: 0.6rem;
+  padding: var(--space-3);
   background: transparent;
   color: var(--text-muted);
   border: 1px solid var(--bg-elevated);
@@ -328,12 +365,19 @@ main {
   font-size: 0.9rem;
 }
 
+.aba:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
 .aba.ativa {
   background: var(--bg-elevated);
   color: var(--accent-signal);
   border-color: var(--accent-signal);
   font-weight: 500;
 }
+
+.aba.ativa:hover { color: var(--accent-signal); }
 
 .letras-suportadas {
   color: var(--text-muted);
@@ -343,12 +387,12 @@ main {
 .aviso {
   color: var(--accent-signal);
   border-left: 2px solid var(--accent-signal);
-  padding-left: 0.6rem;
+  padding-left: var(--space-3);
 }
 
 #btn-gravar-palavra {
-  margin-top: 0.5rem;
-  padding: 0.7rem 1.2rem;
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-5);
   background: var(--accent-signal);
   color: #0B0E14;
   border: none;
@@ -359,29 +403,31 @@ main {
   cursor: pointer;
 }
 
+#btn-gravar-palavra:hover:not(:disabled) { opacity: 0.88; }
+
 #btn-gravar-palavra:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .resultado {
-  margin-top: 1.2rem;
+  margin-top: var(--space-5);
   font-size: 1.05rem;
   min-height: 1.6rem;
   color: var(--text-muted);
 }
 
 .construtor-frase {
-  margin-top: 1rem;
+  margin-top: var(--space-4);
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-6);
 }
 
 .linha-construtor {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .rotulo {
@@ -406,7 +452,7 @@ main {
   height: 3px;
   background: var(--bg-elevated);
   border-radius: 2px;
-  margin-top: 0.4rem;
+  margin-top: var(--space-2);
   overflow: hidden;
 }
 
@@ -422,22 +468,27 @@ main {
 }
 
 .frase-box {
-  margin-top: 1rem;
+  margin-top: var(--space-4);
   background: var(--bg-base);
   border: 1px solid var(--bg-elevated);
   border-radius: 6px;
-  padding: 0.7rem 0.9rem;
+  padding: var(--space-3) var(--space-4);
+  transition: border-color 0.15s ease;
+}
+
+.frase-box:focus-within {
+  border-color: var(--accent-signal);
 }
 
 .frase-box p {
-  margin: 0.3rem 0 0;
+  margin: var(--space-1) 0 0;
   font-size: 1.1rem;
   word-break: break-word;
 }
 
 .frase-box textarea {
   width: 100%;
-  margin-top: 0.3rem;
+  margin-top: var(--space-1);
   background: transparent;
   color: var(--text-primary);
   border: none;
@@ -459,12 +510,12 @@ main {
 .botoes-frase {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
 }
 
 .botoes-frase button {
-  padding: 0.55rem 0.8rem;
+  padding: var(--space-2) var(--space-3);
   background: transparent;
   color: var(--text-primary);
   border: 1px solid var(--bg-elevated);
@@ -477,6 +528,7 @@ main {
 
 .botoes-frase button:hover {
   border-color: var(--text-muted);
+  background: var(--bg-elevated);
 }
 
 #btn-traduzir-agora {
@@ -484,20 +536,28 @@ main {
   color: var(--accent-confirm);
 }
 
+#btn-traduzir-agora:hover {
+  border-color: var(--accent-confirm);
+  background: rgba(111, 231, 183, 0.1);
+}
+
 .toggle-dev {
   display: block;
-  margin-top: 1rem;
+  margin-top: var(--space-4);
   color: var(--text-muted);
   font-size: 0.85rem;
   cursor: pointer;
+  transition: color 0.15s ease;
 }
 
+.toggle-dev:hover { color: var(--text-primary); }
+
 .painel-dev {
-  margin-top: 0.6rem;
+  margin-top: var(--space-2);
   background: var(--bg-base);
   border: 1px solid var(--bg-elevated);
   border-radius: 6px;
-  padding: 0.7rem 0.9rem;
+  padding: var(--space-3) var(--space-4);
   font-family: var(--fonte-hud);
   font-size: 0.8rem;
 }
@@ -505,8 +565,8 @@ main {
 .candidato-linha {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.3rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .candidato-linha .candidato-letra {
@@ -541,7 +601,7 @@ main {
   background: var(--bg-surface);
   border: 1px solid var(--bg-elevated);
   border-radius: 8px;
-  padding: 1.2rem 1.5rem;
+  padding: var(--space-5) var(--space-6);
 }
 
 .painel-historico h2,
@@ -561,18 +621,18 @@ main {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .historico-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.8rem;
+  gap: var(--space-3);
   background: var(--bg-base);
   border: 1px solid var(--bg-elevated);
   border-radius: 6px;
-  padding: 0.6rem 0.8rem;
+  padding: var(--space-2) var(--space-3);
 }
 
 .historico-texto {
@@ -585,7 +645,7 @@ main {
   color: var(--text-muted);
   font-family: var(--fonte-hud);
   font-size: 0.72rem;
-  margin-left: 0.4rem;
+  margin-left: var(--space-2);
 }
 
 .historico-item button {
@@ -595,9 +655,14 @@ main {
   border-radius: 6px;
   color: var(--text-primary);
   cursor: pointer;
-  padding: 0.3rem 0.6rem;
+  padding: var(--space-1) var(--space-2);
   font-family: var(--fonte-hud);
   font-size: 0.7rem;
+}
+
+.historico-item button:hover {
+  border-color: var(--accent-confirm);
+  color: var(--accent-confirm);
 }
 
 .historico-vazio {
@@ -608,7 +673,7 @@ main {
 .grade-guia {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 0.8rem;
+  gap: var(--space-3);
 }
 
 .guia-item {
@@ -616,7 +681,7 @@ main {
   background: var(--bg-base);
   border: 1px solid var(--bg-elevated);
   border-radius: 6px;
-  padding: 0.5rem;
+  padding: var(--space-2);
 }
 
 .guia-item img {
@@ -628,7 +693,7 @@ main {
 
 .guia-item span {
   display: block;
-  margin-top: 0.3rem;
+  margin-top: var(--space-1);
   font-family: var(--fonte-hud);
   font-weight: 500;
   color: var(--accent-signal);
@@ -639,15 +704,15 @@ main {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
-  gap: 0.4rem;
-  margin-bottom: 1rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
 .pipeline-passo {
   background: var(--bg-base);
   border: 1px solid var(--bg-elevated);
   border-radius: 6px;
-  padding: 0.7rem 0.8rem;
+  padding: var(--space-3);
   text-align: center;
   font-family: var(--fonte-hud);
   font-size: 0.75rem;
@@ -659,14 +724,14 @@ main {
   display: block;
   color: var(--accent-signal);
   font-size: 0.7rem;
-  margin-bottom: 0.3rem;
+  margin-bottom: var(--space-1);
 }
 
 .pipeline-passo small {
   display: block;
   color: var(--text-muted);
   font-size: 0.65rem;
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
   letter-spacing: normal;
 }
 
@@ -684,7 +749,7 @@ footer {
   text-align: center;
   color: var(--text-muted);
   font-size: 0.82rem;
-  padding: 0 1.5rem 2rem;
+  padding: 0 var(--space-6) var(--space-8);
 }
 
 footer a {
@@ -703,17 +768,17 @@ footer a {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- Responsivo (celular) --- */
+/* --- Responsivo (celular, testado mentalmente a partir de 375px) --------- */
 @media (max-width: 640px) {
-  header { padding: 1.4rem 1rem 0.8rem; }
+  header { padding: var(--space-6) var(--space-4) var(--space-3); }
   header h1 { font-size: 1.6rem; }
   .hero-mao { width: 220px; height: 300px; }
-  main { padding: 0.7rem 0.8rem 2rem; gap: 1rem; }
+  main { padding: var(--space-3) var(--space-3) var(--space-8); gap: var(--space-4); }
   .painel-camera { min-height: 260px; flex-basis: 100%; }
-  .painel-controles { flex-basis: 100%; padding: 1rem; }
+  .painel-controles { flex-basis: 100%; padding: var(--space-4); }
   .botoes-frase { flex-direction: column; }
   .botoes-frase button { width: 100%; }
-  .construtor-frase { flex-direction: column; gap: 0.8rem; }
+  .construtor-frase { flex-direction: column; gap: var(--space-3); }
   .grade-guia { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
   .pipeline { flex-direction: column; align-items: stretch; }
   .pipeline-conector { width: 1px; height: 16px; align-self: center; }
@@ -735,7 +800,11 @@ footer a {
   }
   .barra-progresso-fill,
   .valor-destaque,
-  .bracket {
+  .bracket,
+  button {
     transition: none !important;
+  }
+  button:active:not(:disabled) {
+    transform: none;
   }
 }
