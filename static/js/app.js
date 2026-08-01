@@ -209,7 +209,13 @@ async function trocarCameraFrontalTraseira() {
 
 function capturarFrameBase64() {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.7);
+  // Qualidade mais alta que o padrão (0.7 -> 0.92): poses de punho fechado
+  // (A, E, T, S, M, N) têm os dedos curvados/ocultos, e o MediaPipe precisa
+  // "adivinhar" a posição deles a partir de detalhes finos (dobra do
+  // polegar contra os dedos) que a compressão JPEG mais agressiva estava
+  // borrando — letras de mão aberta (B, C, L...) sofrem bem menos com isso
+  // porque os dedos já estão todos visíveis e bem separados.
+  return canvas.toDataURL("image/jpeg", 0.92);
 }
 
 // O overlay do esqueleto só aparece em Modo Desenvolvedor — por padrão a
