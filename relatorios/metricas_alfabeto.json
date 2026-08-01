@@ -1,0 +1,26 @@
+{
+  "modelo_escolhido": "regressao_logistica",
+  "f1_macro_por_modelo": {
+    "regressao_logistica": 0.9776440813119586,
+    "random_forest": 0.9683663027159501
+  },
+  "n_amostras_treino": 3067,
+  "n_amostras_teste": 767,
+  "classes": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "I",
+    "L",
+    "M",
+    "N",
+    "O",
+    "R",
+    "S",
+    "U",
+    "V",
+    "W"
+  ]
+}

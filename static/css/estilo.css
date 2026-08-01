@@ -1,0 +1,149 @@
+:root {
+  --bg: #0f1117;
+  --painel: #171a24;
+  --texto: #e8e8ec;
+  --texto-fraco: #9a9ca8;
+  --acento: #6c8cff;
+  --sucesso: #3ddc84;
+  --aviso: #ffb454;
+  --borda: #2a2e3d;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--texto);
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  min-height: 100vh;
+}
+
+header {
+  padding: 2rem 1.5rem 1rem;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  background: linear-gradient(90deg, var(--acento), var(--sucesso));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.subtitulo {
+  color: var(--texto-fraco);
+  margin-top: 0.4rem;
+}
+
+main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 3rem;
+}
+
+.painel-camera {
+  position: relative;
+  flex: 1 1 480px;
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 360px;
+}
+
+.painel-camera video {
+  width: 100%;
+  height: auto;
+  display: block;
+  transform: scaleX(-1); /* espelha, como um espelho de verdade */
+}
+
+.overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+}
+
+.painel-controles {
+  flex: 1 1 320px;
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 1.2rem;
+}
+
+.abas {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.aba {
+  flex: 1;
+  padding: 0.6rem;
+  background: transparent;
+  color: var(--texto-fraco);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.aba.ativa {
+  background: var(--acento);
+  color: #0b0d13;
+  border-color: var(--acento);
+  font-weight: 600;
+}
+
+.letras-suportadas {
+  color: var(--texto-fraco);
+  font-size: 0.9rem;
+}
+
+.aviso {
+  color: var(--aviso);
+}
+
+#btn-gravar-palavra {
+  margin-top: 0.5rem;
+  padding: 0.7rem 1.2rem;
+  background: var(--sucesso);
+  color: #0b0d13;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#btn-gravar-palavra:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.resultado {
+  margin-top: 1.2rem;
+  font-size: 1.3rem;
+  min-height: 2rem;
+}
+
+footer {
+  text-align: center;
+  color: var(--texto-fraco);
+  font-size: 0.85rem;
+  padding: 0 1.5rem 2rem;
+}
+
+footer a {
+  color: var(--acento);
+}

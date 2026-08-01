@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SinalizAI — Reconhecimento de Libras</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/estilo.css') }}">
+</head>
+<body>
+<header>
+  <h1>SinalizAI</h1>
+  <p class="subtitulo">Reconhecimento de Libras em tempo real com visão computacional</p>
+</header>
+
+<main>
+  <section class="painel-camera">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas" hidden></canvas>
+    <div id="overlay" class="overlay">Iniciando câmera...</div>
+  </section>
+
+  <section class="painel-controles">
+    <div class="abas">
+      <button class="aba ativa" data-modo="alfabeto">Alfabeto</button>
+      <button class="aba" data-modo="palavra">Palavra</button>
+    </div>
+
+    <div id="modo-alfabeto" class="modo">
+      {% if alfabeto_disponivel %}
+        <p>Mostre uma letra estática do alfabeto de Libras pra câmera. Reconhecimento contínuo.</p>
+        <p class="letras-suportadas">Letras suportadas: {{ letras|join(', ') }}</p>
+      {% else %}
+        <p class="aviso">Modelo do alfabeto ainda não foi treinado neste servidor.</p>
+      {% endif %}
+    </div>
+
+    <div id="modo-palavra" class="modo" hidden>
+      {% if palavras_disponivel %}
+        <p>Clique em "Gravar sinal" e execute a palavra em ~2 segundos.</p>
+        <p class="letras-suportadas">Palavras suportadas: {{ palavras|join(', ') }}</p>
+        <button id="btn-gravar-palavra">Gravar sinal (2s)</button>
+      {% else %}
+        <p class="aviso">
+          Modelo de palavras ainda não foi treinado neste servidor — precisa de vídeos
+          próprios (<code>gravar_amostras_palavras.py</code>) ou do dataset V-LIBRASIL.
+          Ver README.
+        </p>
+      {% endif %}
+    </div>
+
+    <div id="resultado" class="resultado"></div>
+  </section>
+</main>
+
+<footer>
+  <p>
+    Projeto de portfólio — MediaPipe + scikit-learn/PyTorch + Flask.
+    Alfabeto treinado com o
+    <a href="https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset" target="_blank" rel="noopener">
+      Brazilian Sign Language Alphabet Dataset</a> (Passos, Fernandes &amp; Comunello, UNIVALI).
+  </p>
+</footer>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

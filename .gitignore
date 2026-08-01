@@ -1,0 +1,20 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Dados brutos e intermediários: grandes/reproduzíveis pelos scripts em src/sinalizai
+# (o CSV/npz de landmarks também fica de fora — regenera em minutos a partir do raw)
+data/raw/
+data/landmarks/
+
+# Bundles de modelo do MediaPipe (~20MB, baixados por download_modelos_mediapipe.py)
+models/mediapipe/*.task
+
+# NOTA: os modelos TREINADOS (classificador_alfabeto.joblib, classificador_palavras.pt,
+# palavras_labels.json) e os relatórios (relatorios/) são versionados DE PROPÓSITO —
+# são o resultado real do treino, não lixo reproduzível, e permitem ver os resultados
+# no GitHub sem precisar rodar o pipeline inteiro primeiro.
+
+*.log
+.DS_Store
