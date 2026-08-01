@@ -1,19 +1,19 @@
 :root {
-  /* Tema claro e quente — troca completa da base escura anterior, não só
-     os accents. Cartão branco sobre fundo marfim (não branco puro sobre
-     branco puro — precisa do contraste do hairline border pra separar). */
-  --bg-base: #F6F3EC;
-  --bg-surface: #FFFFFF;
-  --bg-elevated: #E3DCC9;
-  /* Tons escolhidos (não só "bonitos") pra passar 4.5:1 de contraste contra
-     bg-base E bg-surface — ferramenta de acessibilidade não pode ter texto
-     de accent ilegível; a primeira tentativa (âmbar mais claro) falhava em
-     2.87:1, verificado antes de aplicar, não depois. */
-  --accent-signal: #A3520A;   /* âmbar — "em análise", mantém a lógica "quente = atenção" */
-  --accent-confirm: #0D6B4F;  /* verde profundo — "confirmado" */
-  --text-primary: #201C16;
-  --text-muted: #746C5E;
-  --text-sobre-accent: #FFFFFF; /* texto em cima de um botão sólido de accent-signal */
+  /* De volta a um fundo escuro (o usuário rejeitou o tema claro — "não
+     quero fundo branco"), mas com um par de accent DIFERENTE do coral/menta
+     original (que também tinha sido rejeitado antes) — âmbar quente +
+     verde-esmeralda, mais saturados/claros que na versão clara, porque
+     fundo escuro pede accent mais brilhante pra manter o mesmo contraste. */
+  --bg-base: #0E0B08;
+  --bg-surface: #17130E;
+  --bg-elevated: #211B13;
+  /* Contraste verificado (não só "bonito"): os dois passam 9:1+ contra
+     bg-base/bg-surface, bem acima do mínimo de 4.5:1. */
+  --accent-signal: #F0A73E;   /* âmbar quente — "em análise" */
+  --accent-confirm: #3DDC97;  /* verde-esmeralda — "confirmado" */
+  --text-primary: #F3EFE7;
+  --text-muted: #9A917F;
+  --text-sobre-accent: #0E0B08; /* texto ESCURO em cima do botão (accent-signal aqui é claro, não escuro) */
 
   --fonte-display: "Space Grotesk", "Segoe UI", sans-serif;
   --fonte-corpo: "Inter", "Segoe UI", sans-serif;
@@ -120,11 +120,8 @@ header {
 }
 
 @keyframes respirar-motivo {
-  /* Levemente mais opaco que num tema escuro — cor escura em opacidade muito
-     baixa sobre fundo claro tende a sumir de vez, em vez de "brilhar" como
-     acontecia sobre o fundo grafite anterior. */
-  0%, 100% { opacity: 0.09; }
-  50% { opacity: 0.15; }
+  0%, 100% { opacity: 0.07; }
+  50% { opacity: 0.12; }
 }
 
 header h1,
