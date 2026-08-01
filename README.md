@@ -121,6 +121,29 @@ modo dev como indício aproximado ("sobrancelhas levantadas", "boca aberta"),
 não como fato. Ver `HolisticSequenceExtractor._interpretar_pista_facial` em
 `src/sinalizai/landmarks.py`.
 
+## Reconhecimento bimanual (2 mãos)
+
+A maioria dos sinais de Libras de verdade usa as duas mãos ao mesmo tempo —
+só o alfabeto datilológico (letras) é estritamente 1-mão por definição da
+própria língua. As duas partes do pipeline já refletem essa diferença, uma
+já pronta e outra como infraestrutura aguardando dado de treino:
+
+- **Palavras (Holistic, LSTM)**: já captura **as duas mãos de forma
+  independente** desde o início (`mao_esq_norm`/`mao_dir_norm` em
+  `HolisticSequenceExtractor._vetor_do_frame`) — não precisou de nenhuma
+  mudança nesta rodada. Um sinal bimanual de verdade só depende de gravar o
+  vocabulário (mesma limitação de sempre: pipeline funciona, zero vídeo
+  próprio gravado ainda).
+- **Alfabeto (Hand Landmarker, Random Forest)**: o classificador treinado é
+  e continua sendo estritamente 1-mão (é a natureza correta do alfabeto).
+  Ganhou, porém, `HandLandmarkExtractor.extrair_todas_de_bgr` — extrai o
+  vetor normalizado de CADA mão detectada (até `num_hands`), com o rótulo
+  "Left"/"Right" do MediaPipe. Não é chamado por nenhuma rota hoje — é
+  infraestrutura pronta pra um vocabulário bimanual estático futuro (ex:
+  números que usam duas mãos) reaproveitar sem reescrever o extrator do
+  zero, o mesmo espírito de "arquitetura pronta antes do dado" já usado
+  pro pipeline de palavras inteiro.
+
 ## Resultados reais (alfabeto)
 
 **Atualizado após expandir de 15 pra 21 letras** (mesclando o dataset original

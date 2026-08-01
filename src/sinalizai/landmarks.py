@@ -73,6 +73,31 @@ class HandLandmarkExtractor:
         pontos_brutos = [[p.x, p.y] for p in pontos]
         return vetor, pontos_brutos
 
+    def extrair_todas_de_bgr(self, frame_bgr: np.ndarray) -> list[dict]:
+        """Igual `extrair_de_bgr`, mas devolve uma lista com o vetor normalizado
+        de CADA mão detectada (até `num_hands`), não só a primeira —
+        infraestrutura pronta pra sinais que usam as duas mãos ao mesmo tempo,
+        que é a maioria dos sinais de Libras de verdade (o alfabeto
+        datilológico atual, ver `config.LETRAS_ESTATICAS`, é estritamente
+        1-mão por definição da própria língua, então o classificador treinado
+        hoje continua usando só `extrair_de_bgr`/a mão índice 0 — este método
+        não é chamado por nenhuma rota ainda, existe pra um vocabulário
+        bimanual estático futuro reaproveitar sem precisar reescrever o
+        extrator). Cada item da lista tem `vetor` (63 features normalizadas,
+        mesmo formato de sempre) e `lado` ("Left"/"Right", via
+        `resultado.handedness` — rótulo cru do MediaPipe, não invertido pra
+        espelhamento de webcam; quem consumir decide se precisa corrigir)."""
+        resultado = self._detectar(frame_bgr)
+        if not resultado.hand_landmarks:
+            return []
+        saida = []
+        for indice, pontos in enumerate(resultado.hand_landmarks):
+            lado = "Desconhecida"
+            if resultado.handedness and indice < len(resultado.handedness) and resultado.handedness[indice]:
+                lado = resultado.handedness[indice][0].category_name
+            saida.append({"vetor": self._normalizar(pontos), "lado": lado})
+        return saida
+
     def _detectar(self, frame_bgr: np.ndarray):
         rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
