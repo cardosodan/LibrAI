@@ -1,24 +1,30 @@
 {
-  "modelo_escolhido": "regressao_logistica",
+  "modelo_escolhido": "random_forest",
   "f1_macro_por_modelo": {
-    "regressao_logistica": 0.9776440813119586,
-    "random_forest": 0.9683663027159501
+    "regressao_logistica": 0.8993351804711076,
+    "random_forest": 0.9390990156286234
   },
-  "n_amostras_treino": 3067,
-  "n_amostras_teste": 767,
+  "n_amostras_treino": 4176,
+  "n_amostras_teste": 1045,
   "classes": [
     "A",
     "B",
     "C",
     "D",
     "E",
+    "F",
+    "G",
     "I",
+    "K",
     "L",
     "M",
     "N",
     "O",
+    "P",
+    "Q",
     "R",
     "S",
+    "T",
     "U",
     "V",
     "W"

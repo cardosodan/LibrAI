@@ -60,7 +60,11 @@ def main() -> None:
     destino_bruto = config.RAW_DIR / "_roboflow_bruto"
     if destino_bruto.exists():
         shutil.rmtree(destino_bruto)
-    destino_bruto.mkdir(parents=True, exist_ok=True)
+    # NÃO criar a pasta aqui — achado real: se o diretório já existe (mesmo
+    # vazio), o SDK do Roboflow silenciosamente PULA o download inteiro sem
+    # erro nenhum (a pasta fica vazia, e o resto do script segue "com sucesso"
+    # sem nenhuma imagem de verdade). Deixar o próprio .download() criar.
+    config.RAW_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"Conectando ao Roboflow ({WORKSPACE}/{PROJETO}, versão {VERSAO})...")
     rf = Roboflow(api_key=api_key)
@@ -75,11 +79,13 @@ def main() -> None:
 
     # Export COCO do Roboflow separa em subpastas train/valid/test, cada uma
     # com seu próprio _annotations.coco.json — processamos as 3.
+    nenhuma_anotacao_encontrada = True
     for subpasta in ["train", "valid", "test"]:
         pasta_split = Path(dataset.location) / subpasta
         anotacoes_path = pasta_split / "_annotations.coco.json"
         if not anotacoes_path.exists():
             continue
+        nenhuma_anotacao_encontrada = False
 
         dados = json.loads(anotacoes_path.read_text(encoding="utf-8"))
         id_para_nome_categoria = {c["id"]: c["name"] for c in dados["categories"]}
@@ -106,6 +112,13 @@ def main() -> None:
             contagem_por_letra[letra] = contagem_por_letra.get(letra, 0) + 1
 
     shutil.rmtree(destino_bruto, ignore_errors=True)
+
+    if nenhuma_anotacao_encontrada or not contagem_por_letra:
+        raise SystemExit(
+            "Nenhuma anotação/imagem encontrada no download — algo mudou na "
+            "estrutura do export do Roboflow. Não mesclado nada, verifique antes "
+            "de tentar de novo."
+        )
 
     print(f"\nOK: mesclado em {config.ALFABETO_RAW_DIR}")
     for letra, n in sorted(contagem_por_letra.items()):

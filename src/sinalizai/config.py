@@ -30,12 +30,18 @@ PALAVRAS_LABELS_PATH = MODELS_DIR / "palavras_labels.json"
 RELATORIOS_DIR = BASE_DIR / "relatorios"
 
 # --- Classes do alfabeto -------------------------------------------------
-# Só sinais ESTÁTICOS do alfabeto manual de Libras entram aqui. As letras
-# H, J, K, X, Y, Z (entre outras, dependendo da fonte) exigem MOVIMENTO pra
-# serem sinalizadas corretamente — um classificador de pose única (uma foto)
-# não tem informação suficiente pra diferenciá-las de outras letras, então
-# ficam de fora desta fase por design, não por esquecimento. Ver README.
-LETRAS_ESTATICAS = ["A", "B", "C", "D", "E", "I", "L", "M", "N", "O", "R", "S", "U", "V", "W"]
+# Só sinais ESTÁTICOS do alfabeto manual de Libras entram aqui. H, J, X, Y, Z
+# exigem MOVIMENTO pra serem sinalizadas corretamente — um classificador de
+# pose única (uma foto) não tem informação suficiente pra diferenciá-las de
+# outras letras, então ficam de fora desta fase por design, não por
+# esquecimento. Ver README. (K entrou nesta lista com a expansão via
+# Roboflow — o dataset trata a pose inicial dela como estática o bastante
+# pra classificar numa foto só, mesmo tendo algum movimento na sinalização
+# completa.)
+LETRAS_ESTATICAS = [
+    "A", "B", "C", "D", "E", "F", "G", "I", "K", "L", "M",
+    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W",
+]
 
 # --- Hiperparâmetros de landmarks -----------------------------------------
 NUM_LANDMARKS_MAO = 21          # pontos por mão (padrão MediaPipe Hands)

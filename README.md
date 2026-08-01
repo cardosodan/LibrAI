@@ -11,8 +11,8 @@ Duas partes, propositalmente resolvidas com abordagens diferentes:
 |---|---|---|
 | Natureza do sinal | Pose estática (uma foto já basta) | Movimento ao longo do tempo |
 | Extração | MediaPipe **Hand Landmarker** (só mãos) | MediaPipe **Holistic Landmarker** (pose + mãos) |
-| Classificador | Regressão Logística (venceu Random Forest — ver Resultados) | LSTM bidirecional (PyTorch) |
-| Dataset | [Brazilian Sign Language Alphabet Dataset](https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset) (4.411 imagens reais, UNIVALI) | Auto-gravado pela webcam (ver seção Dataset de Palavras) |
+| Classificador | Random Forest (venceu Regressão Logística — ver Resultados) | LSTM bidirecional (PyTorch) |
+| Dataset | [Brazilian Sign Language Alphabet Dataset](https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset) (UNIVALI) + [Alfabeto em Libras](https://universe.roboflow.com/elainesilva/alfabeto-em-libras-qrvnw) (Roboflow, ElaineSilva) — 21 letras, ~6.100 imagens reais combinadas | Auto-gravado pela webcam (ver seção Dataset de Palavras) |
 | Status | **Treinado e funcionando**, métricas reais abaixo | Pipeline completo e testado (smoke test), aguardando vídeos reais |
 
 ## Tradução ao vivo: Libras → Português → Inglês, com voz
@@ -96,39 +96,49 @@ aprenderia "a pessoa está longe da câmera" em vez do sinal em si.
 
 ## Resultados reais (alfabeto)
 
-Rodando `treinar_alfabeto.py` sobre as 4.411 imagens do dataset:
+**Atualizado após expandir de 15 pra 21 letras** (mesclando o dataset original
+da UNIVALI com o [Alfabeto em Libras](https://universe.roboflow.com/elainesilva/alfabeto-em-libras-qrvnw)
+de ElaineSilva, Roboflow Universe, CC BY 4.0 — ver seção de créditos).
+Rodando `treinar_alfabeto.py` sobre as ~6.100 imagens combinadas:
 
-- **Detecção de mão pelo MediaPipe: 3.834/4.411 imagens (86,9%)** — as
-  imagens sem detecção (fundo/enquadramento fora do esperado) ficaram de
-  fora do treino, não foram forçadas.
+- **Detecção de mão pelo MediaPipe: 5.221/6.144 imagens (85,0%)** — as
+  imagens sem detecção ficaram de fora do treino, não foram forçadas.
 - Dois modelos comparados de propósito (nunca só um):
 
   | Modelo | F1 macro (teste, 20%) |
   |---|---|
-  | **Regressão Logística** | **0,978** |
-  | Random Forest | 0,968 |
+  | Regressão Logística | 0,899 |
+  | **Random Forest** | **0,939** |
 
-  A Regressão Logística venceu — sinal de que, no espaço de 63 features de
-  landmark normalizado, o problema é quase linearmente separável. Reportar
-  isso (em vez de só treinar uma árvore e aceitar) é o ponto principal desta
-  comparação.
+  Desta vez o Random Forest venceu (o oposto do resultado com 15 letras,
+  onde a Regressão Logística vencia) — com mais classes e handshapes mais
+  próximos entre si (ex: F/T, que puxam a média pra baixo), a fronteira de
+  decisão deixa de ser tão linearmente separável quanto antes. Comparar os
+  dois modelos a cada retreino (não fixar um "vencedor" permanente) é
+  exatamente o que permitiu perceber essa mudança.
 - Matriz de confusão completa em [`relatorios/matriz_confusao_alfabeto.png`](relatorios/matriz_confusao_alfabeto.png),
   métricas por classe em [`relatorios/metricas_alfabeto.json`](relatorios/metricas_alfabeto.json).
-- **Limitação honesta**: classes com poucas amostras originais ficaram
-  pequenas depois do filtro de detecção (ex: `N` caiu de 156 para 31
-  imagens, ~6 no conjunto de teste) — o F1 dessas classes é mais ruidoso
-  (`N`: 0,83) que o das classes maiores (`A`/`B`/`C`: ~1,00). Isso está
-  documentado, não escondido.
+- **Limitação honesta**: `F` (F1 0,69) e `T` (F1 0,72) são as classes mais
+  fracas — poucas amostras (91 e 85 imagens antes do filtro de detecção,
+  as menores do conjunto novo) combinadas com handshapes que aparentemente
+  o modelo confunde mais entre si e com outras letras. Documentado, não
+  escondido — classes com F1 baixo tendem a ser as recém-adicionadas com
+  menos dado, não uma falha aleatória do pipeline.
 
-## Por que só 15 letras (não as 26)
+## Por que 21 letras (não as 26)
 
 O alfabeto manual de Libras tem letras que exigem **movimento** pra serem
-sinalizadas corretamente (H, J, K, X, Y, Z, entre outras variações conforme
-a fonte). Um classificador de pose única (uma foto) estruturalmente não tem
-informação temporal pra diferenciá-las de outras letras — por isso ficam de
-fora do classificador ESTÁTICO por design, não por falta de dado. O caminho
-certo pra cobri-las é o mesmo usado pras palavras (sequência + LSTM), item
-que está no roadmap.
+sinalizadas corretamente. `H`, `J`, `X`, `Y`, `Z` ficam de fora do
+classificador ESTÁTICO por design — um classificador de pose única (uma
+foto) estruturalmente não tem informação temporal pra diferenciá-las de
+outras letras. O caminho certo pra cobri-las é o mesmo usado pras palavras
+(sequência + LSTM), item que está no roadmap.
+
+`K` é um caso à parte: inicialmente catalogada aqui como "letra de
+movimento" também, o dataset do Roboflow (ver Créditos) a trata como
+estática — a pose inicial já é distinguível o suficiente numa foto só. Os
+resultados confirmam isso na prática (F1 de 1,00 pra `K` com Random
+Forest), então ela entrou na lista sem ressalva.
 
 ## Dataset de palavras: por que auto-gravado, não um dataset público baixado
 
@@ -199,6 +209,12 @@ venv/Scripts/python.exe -m sinalizai.baixar_modelos_mediapipe
 
 ```bash
 venv/Scripts/python.exe -m sinalizai.baixar_dataset_alfabeto
+
+# opcional, mas recomendado — expande de 15 pra 21 letras (F,G,K,P,Q,T);
+# exige conta grátis em roboflow.com + API key em Settings > API Keys
+$env:ROBOFLOW_API_KEY = "sua_chave"   # ou export no bash
+venv/Scripts/python.exe -m sinalizai.baixar_dataset_alfabeto_roboflow
+
 venv/Scripts/python.exe -m sinalizai.preparar_dataset_alfabeto
 venv/Scripts/python.exe -m sinalizai.treinar_alfabeto
 ```
@@ -276,9 +292,11 @@ SinalizAI/
 
 ## Limitações conhecidas (documentadas de propósito, não escondidas)
 
-- **Só letras estáticas** (15/26) — ver seção acima.
-- **Classes desbalanceadas** no alfabeto pós-filtro de detecção (`N`, `M`,
-  `O` têm bem menos amostras que `A`-`E`).
+- **Só letras estáticas** (21/26) — ver seção acima.
+- **Classes desbalanceadas** no alfabeto pós-filtro de detecção — as letras
+  recém-adicionadas via Roboflow (`F`, `G`, `K`, `P`, `Q`, `T`) têm bem menos
+  amostras (60-100) que as herdadas da UNIVALI (`A`-`E`, 500+); `F`/`T` são
+  as classes com F1 mais baixo, provavelmente por causa disso.
 - **Modelo de palavras sem dado real ainda** — código completo e testado
   mecanicamente, mas nenhum vocabulário genuíno de Libras foi gravado/
   treinado neste repositório até agora.
@@ -317,12 +335,15 @@ SinalizAI/
 
 ## Créditos e licenças
 
-- **Alfabeto**: [Brazilian Sign Language Alphabet Dataset](https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset)
+- **Alfabeto (base, 15 letras)**: [Brazilian Sign Language Alphabet Dataset](https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset)
   — Passos, Fernandes & Comunello, UNIVALI, licença MIT (cópia em
   [`docs/creditos/`](docs/creditos/)). Nota de transparência: as imagens têm
   origem em fotos de ASL (American Sign Language) curadas pelos autores
-  originais pelas 15 letras com a mesma configuração manual em Libras — não
+  originais pelas letras com a mesma configuração manual em Libras — não
   são fotos nativas de sinalizantes de Libras.
+- **Alfabeto (expansão, +6 letras: F, G, K, P, Q, T)**: [Alfabeto em Libras](https://universe.roboflow.com/elainesilva/alfabeto-em-libras-qrvnw)
+  — ElaineSilva, Roboflow Universe, licença CC BY 4.0. Essas, sim, são fotos
+  reais de sinalizantes de Libras (não derivadas de ASL).
 - **V-LIBRASIL** (mencionado, não usado como dado de treino nesta versão):
   Rodrigues, UFPE, licença CC BY-NC-ND 4.0.
 - **MediaPipe** (Apache 2.0) — Google.
