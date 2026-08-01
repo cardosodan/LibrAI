@@ -105,9 +105,11 @@ header {
   z-index: 0;
 }
 
-.hero-mao-linhas line {
+.hero-mao-linhas path {
+  fill: none;
   stroke: var(--accent-signal);
   stroke-width: 0.6;
+  stroke-linecap: round;
 }
 
 .hero-mao-pontos circle {
@@ -290,9 +292,11 @@ main {
   height: 98px;
 }
 
-.spinner-mao line {
+.spinner-mao path {
+  fill: none;
   stroke: var(--accent-signal);
   stroke-width: 1.4;
+  stroke-linecap: round;
   stroke-dasharray: 40;
   stroke-dashoffset: 40;
   animation: desenhar-linha 2.4s ease-in-out infinite;
@@ -821,7 +825,7 @@ footer a {
   .ponto-pulsante,
   .estado-conexao.ok .ponto-pulsante,
   .visor-scanner.analisando .bracket,
-  .spinner-mao line,
+  .spinner-mao path,
   .spinner-mao circle,
   #letra-atual,
   #palavra-atual,
