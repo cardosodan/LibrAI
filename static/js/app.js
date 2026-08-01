@@ -1,27 +1,38 @@
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
+const overlayEsqueleto = document.getElementById("overlay-esqueleto");
 const overlay = document.getElementById("overlay");
 const resultado = document.getElementById("resultado");
 const btnGravarPalavra = document.getElementById("btn-gravar-palavra");
 const abas = document.querySelectorAll(".aba");
 const modoAlfabetoEl = document.getElementById("modo-alfabeto");
 const modoPalavraEl = document.getElementById("modo-palavra");
+const estadoConexao = document.getElementById("estado-conexao");
 
 const elLetraAtual = document.getElementById("letra-atual");
 const elPalavraAtual = document.getElementById("palavra-atual");
 const elFraseAtual = document.getElementById("frase-atual");
 const elFraseTraduzida = document.getElementById("frase-traduzida");
+const barraProgressoFill = document.getElementById("barra-progresso-fill");
+const btnApagarLetra = document.getElementById("btn-apagar-letra");
 const btnFecharPalavra = document.getElementById("btn-fechar-palavra");
 const btnTraduzirAgora = document.getElementById("btn-traduzir-agora");
+const btnRepetirAudio = document.getElementById("btn-repetir-audio");
 const btnNovaFrase = document.getElementById("btn-nova-frase");
 const btnCamera = document.getElementById("btn-camera");
+const btnTrocarCamera = document.getElementById("btn-trocar-camera");
+const chkModoDev = document.getElementById("chk-modo-dev");
+const painelDev = document.getElementById("painel-dev");
+const listaHistorico = document.getElementById("lista-historico");
 
 let modoAtual = "alfabeto";
 let poolingAtivo = false;
 let gravandoPalavra = false;
 let streamAtual = null;
+let facingModeAtual = "user";
 
 const ctx = canvas.getContext("2d");
+const ctxEsqueleto = overlayEsqueleto.getContext("2d");
 
 // --- Parâmetros do reconhecimento contínuo (soletração) -------------------
 // "Rápida e certa identificação": o polling é rápido (feedback quase
@@ -29,26 +40,47 @@ const ctx = canvas.getContext("2d");
 // palavra) depois de aparecer estável por N leituras seguidas — evita que
 // uma detecção isolada/ruidosa vire uma letra errada na palavra.
 const INTERVALO_POLL_MS = 180;
-const JANELA_ESTABILIDADE = 4;      // últimas N leituras consideradas
+const JANELA_ESTABILIDADE = 4;      // leituras seguidas iguais pra confirmar
 const CONFIANCA_MINIMA = 0.6;
 const PAUSA_PALAVRA_MS = 900;       // sem mão por esse tempo -> fecha a palavra atual
 const PAUSA_FRASE_MS = 2500;        // sem mão por esse tempo -> fecha a frase e traduz
+const FALHAS_PARA_MOSTRAR_ERRO = 3; // polls seguidos falhando até avisar "sem conexão"
 
-let historicoLetras = [];
+let letraCandidata = null;
+let contagemCandidata = 0;
 let letraConfirmada = null;
 let palavraAtual = "";
 let fraseAtual = "";
 let ultimaFraseTraduzida = "";
+let ultimaTraducaoTexto = "";
 let semMaoDesde = null;
+let falhasConsecutivas = 0;
+let historicoSessao = [];
+
+// --- Esqueleto da mão (conexões padrão MediaPipe Hands, 21 pontos) --------
+const CONEXOES_MAO = [
+  [0, 1], [1, 2], [2, 3], [3, 4],       // polegar
+  [0, 5], [5, 6], [6, 7], [7, 8],       // indicador
+  [0, 9], [9, 10], [10, 11], [11, 12],  // médio
+  [0, 13], [13, 14], [14, 15], [15, 16], // anelar
+  [0, 17], [17, 18], [18, 19], [19, 20], // mindinho
+  [5, 9], [9, 13], [13, 17],             // palma
+];
 
 async function iniciarCamera() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: facingModeAtual },
+      audio: false,
+    });
     streamAtual = stream;
     video.srcObject = stream;
     await video.play();
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
+    overlayEsqueleto.width = canvas.width;
+    overlayEsqueleto.height = canvas.height;
+    atualizarEspelhamento();
     overlay.style.display = "block";
     overlay.textContent = "Câmera pronta";
     setTimeout(() => (overlay.style.display = "none"), 1500);
@@ -60,7 +92,19 @@ async function iniciarCamera() {
   } catch (erro) {
     overlay.style.display = "block";
     overlay.textContent = "Não consegui acessar a câmera: " + erro.message;
+    if (btnCamera) {
+      btnCamera.textContent = "Tentar novamente";
+      btnCamera.classList.add("desligada");
+    }
   }
+}
+
+function atualizarEspelhamento() {
+  // Câmera frontal ("user"): espelha, como um espelho de verdade.
+  // Câmera traseira ("environment"): NÃO espelha — senão o mundo real apareceria invertido.
+  const transformacao = facingModeAtual === "user" ? "scaleX(-1)" : "none";
+  video.style.transform = transformacao;
+  overlayEsqueleto.style.transform = transformacao;
 }
 
 function pararCamera() {
@@ -70,6 +114,7 @@ function pararCamera() {
     streamAtual = null;
   }
   video.srcObject = null;
+  ctxEsqueleto.clearRect(0, 0, overlayEsqueleto.width, overlayEsqueleto.height);
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   overlay.style.display = "block";
   overlay.textContent = "Câmera desligada";
@@ -87,9 +132,40 @@ function alternarCamera() {
   }
 }
 
+async function trocarCameraFrontalTraseira() {
+  facingModeAtual = facingModeAtual === "user" ? "environment" : "user";
+  if (streamAtual) {
+    pararCamera();
+    await iniciarCamera();
+  }
+}
+
 function capturarFrameBase64() {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.7);
+}
+
+function desenharEsqueleto(pontos) {
+  ctxEsqueleto.clearRect(0, 0, overlayEsqueleto.width, overlayEsqueleto.height);
+  if (!pontos) return;
+  const w = overlayEsqueleto.width;
+  const h = overlayEsqueleto.height;
+
+  ctxEsqueleto.strokeStyle = "rgba(108, 140, 255, 0.9)";
+  ctxEsqueleto.lineWidth = 2;
+  CONEXOES_MAO.forEach(([a, b]) => {
+    ctxEsqueleto.beginPath();
+    ctxEsqueleto.moveTo(pontos[a][0] * w, pontos[a][1] * h);
+    ctxEsqueleto.lineTo(pontos[b][0] * w, pontos[b][1] * h);
+    ctxEsqueleto.stroke();
+  });
+
+  ctxEsqueleto.fillStyle = "#3ddc84";
+  pontos.forEach(([x, y]) => {
+    ctxEsqueleto.beginPath();
+    ctxEsqueleto.arc(x * w, y * h, 4, 0, 2 * Math.PI);
+    ctxEsqueleto.fill();
+  });
 }
 
 function falar(texto, idioma) {
@@ -102,7 +178,43 @@ function falar(texto, idioma) {
 
 function atualizarUiFrase() {
   elPalavraAtual.textContent = palavraAtual || "_";
-  elFraseAtual.textContent = fraseAtual || "—";
+  if (document.activeElement !== elFraseAtual) {
+    elFraseAtual.value = fraseAtual;
+  }
+}
+
+function escapeHtml(texto) {
+  const div = document.createElement("div");
+  div.textContent = texto;
+  return div.innerHTML;
+}
+
+function renderizarHistorico() {
+  if (historicoSessao.length === 0) {
+    listaHistorico.innerHTML = '<li class="historico-vazio">Nenhuma frase traduzida ainda.</li>';
+    return;
+  }
+  listaHistorico.innerHTML = historicoSessao
+    .map(
+      (item, i) => `
+      <li class="historico-item">
+        <span class="historico-texto">
+          <span class="pt">${escapeHtml(item.pt)}</span> → <span class="en">${escapeHtml(item.en)}</span>
+          <span class="hora">${item.hora}</span>
+        </span>
+        <button data-idx="${i}" class="btn-historico-repetir" title="Ouvir de novo">🔊</button>
+      </li>`
+    )
+    .join("");
+  listaHistorico.querySelectorAll(".btn-historico-repetir").forEach((btn) => {
+    btn.addEventListener("click", () => falar(historicoSessao[+btn.dataset.idx].en, "en-US"));
+  });
+}
+
+function adicionarAoHistorico(pt, en) {
+  const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  historicoSessao.unshift({ pt, en, hora });
+  renderizarHistorico();
 }
 
 async function traduzirFrase(texto) {
@@ -121,6 +233,8 @@ async function traduzirFrase(texto) {
       return;
     }
     elFraseTraduzida.textContent = dados.traducao;
+    ultimaTraducaoTexto = dados.traducao;
+    adicionarAoHistorico(alvo, dados.traducao);
     falar(dados.traducao, "en-US");
   } catch (erro) {
     elFraseTraduzida.textContent = "Erro ao traduzir (conexão).";
@@ -132,7 +246,16 @@ function fecharPalavraAtual() {
   fraseAtual = fraseAtual ? `${fraseAtual} ${palavraAtual}` : palavraAtual;
   palavraAtual = "";
   letraConfirmada = null;
-  historicoLetras = [];
+  letraCandidata = null;
+  contagemCandidata = 0;
+  barraProgressoFill.style.width = "0%";
+  atualizarUiFrase();
+}
+
+function apagarUltimaLetra() {
+  if (!palavraAtual) return;
+  palavraAtual = palavraAtual.slice(0, -1);
+  letraConfirmada = null; // permite confirmar a mesma letra de novo, se for sinalizada outra vez
   atualizarUiFrase();
 }
 
@@ -141,18 +264,56 @@ function novaFrase() {
   fraseAtual = "";
   ultimaFraseTraduzida = "";
   letraConfirmada = null;
-  historicoLetras = [];
+  letraCandidata = null;
+  contagemCandidata = 0;
   semMaoDesde = null;
+  barraProgressoFill.style.width = "0%";
   elLetraAtual.textContent = "—";
   elFraseTraduzida.textContent = "—";
   atualizarUiFrase();
 }
 
+function atualizarPainelDev(candidatos) {
+  if (!chkModoDev.checked || !candidatos) {
+    painelDev.hidden = true;
+    return;
+  }
+  painelDev.hidden = false;
+  painelDev.innerHTML = candidatos
+    .map((c) => {
+      const pct = (c.confianca * 100).toFixed(0);
+      return `
+      <div class="candidato-linha">
+        <span class="candidato-letra">${c.letra}</span>
+        <div class="candidato-barra"><div class="candidato-barra-fill" style="width:${pct}%"></div></div>
+        <span class="candidato-pct">${pct}%</span>
+      </div>`;
+    })
+    .join("");
+}
+
+function marcarConexao(ok) {
+  if (ok) {
+    falhasConsecutivas = 0;
+    estadoConexao.textContent = "● conectado";
+    estadoConexao.className = "estado-conexao ok";
+  } else {
+    falhasConsecutivas++;
+    if (falhasConsecutivas >= FALHAS_PARA_MOSTRAR_ERRO) {
+      estadoConexao.textContent = "● sem conexão com o servidor";
+      estadoConexao.className = "estado-conexao erro";
+    }
+  }
+}
+
 function processarDeteccaoLetra(dados) {
+  atualizarPainelDev(dados.candidatos);
+
   if (!dados.detectado) {
-    // Sem mão: qualquer letra "em progresso" perde a estabilidade acumulada,
-    // e começamos a contar o tempo de pausa (fecha palavra, depois frase).
-    historicoLetras = [];
+    desenharEsqueleto(null);
+    letraCandidata = null;
+    contagemCandidata = 0;
+    barraProgressoFill.style.width = "0%";
     letraConfirmada = null;
     if (semMaoDesde === null) semMaoDesde = Date.now();
 
@@ -168,19 +329,21 @@ function processarDeteccaoLetra(dados) {
   }
 
   semMaoDesde = null;
+  desenharEsqueleto(dados.landmarks);
   elLetraAtual.textContent = `${dados.letra} (${(dados.confianca * 100).toFixed(0)}%)`;
 
   if (dados.confianca < CONFIANCA_MINIMA) return;
 
-  historicoLetras.push(dados.letra);
-  if (historicoLetras.length > JANELA_ESTABILIDADE) historicoLetras.shift();
+  if (dados.letra === letraCandidata) {
+    contagemCandidata = Math.min(contagemCandidata + 1, JANELA_ESTABILIDADE);
+  } else {
+    letraCandidata = dados.letra;
+    contagemCandidata = 1;
+  }
+  barraProgressoFill.style.width = `${(contagemCandidata / JANELA_ESTABILIDADE) * 100}%`;
 
-  const estavel =
-    historicoLetras.length === JANELA_ESTABILIDADE &&
-    historicoLetras.every((l) => l === historicoLetras[0]);
-
-  if (estavel && historicoLetras[0] !== letraConfirmada) {
-    letraConfirmada = historicoLetras[0];
+  if (contagemCandidata >= JANELA_ESTABILIDADE && letraCandidata !== letraConfirmada) {
+    letraConfirmada = letraCandidata;
     palavraAtual += letraConfirmada;
     atualizarUiFrase();
   }
@@ -190,7 +353,7 @@ async function iniciarPollingAlfabeto() {
   if (poolingAtivo) return;
   poolingAtivo = true;
   while (poolingAtivo) {
-    if (modoAtual === "alfabeto" && !gravandoPalavra && elLetraAtual) {
+    if (modoAtual === "alfabeto" && !gravandoPalavra) {
       try {
         const frame = capturarFrameBase64();
         const resposta = await fetch("/api/reconhecer-letra", {
@@ -199,13 +362,14 @@ async function iniciarPollingAlfabeto() {
           body: JSON.stringify({ frame }),
         });
         const dados = await resposta.json();
+        marcarConexao(true);
         if (dados.erro) {
           elLetraAtual.textContent = dados.erro;
         } else {
           processarDeteccaoLetra(dados);
         }
       } catch (erro) {
-        // Falha pontual de rede num poll não deveria travar o loop — só ignora e tenta de novo.
+        marcarConexao(false);
       }
     }
     await new Promise((r) => setTimeout(r, INTERVALO_POLL_MS));
@@ -215,7 +379,7 @@ async function iniciarPollingAlfabeto() {
 async function gravarEClassificarPalavra() {
   if (gravandoPalavra) return;
   if (!streamAtual) {
-    resultado.textContent = "Câmera está desligada — clique em \"Ligar câmera\" primeiro.";
+    resultado.textContent = 'Câmera está desligada — clique em "Ligar câmera" primeiro.';
     return;
   }
   gravandoPalavra = true;
@@ -246,6 +410,7 @@ async function gravarEClassificarPalavra() {
       // Uma palavra reconhecida é, por si só, um limite claro — entra direto
       // na frase acumulada e já dispara tradução, sem esperar pausa nenhuma.
       fraseAtual = fraseAtual ? `${fraseAtual} ${dados.palavra}` : dados.palavra;
+      atualizarUiFrase();
       ultimaFraseTraduzida = fraseAtual;
       traduzirFrase(fraseAtual);
     } else {
@@ -270,12 +435,9 @@ abas.forEach((aba) => {
   });
 });
 
-if (btnGravarPalavra) {
-  btnGravarPalavra.addEventListener("click", gravarEClassificarPalavra);
-}
-if (btnFecharPalavra) {
-  btnFecharPalavra.addEventListener("click", fecharPalavraAtual);
-}
+if (btnGravarPalavra) btnGravarPalavra.addEventListener("click", gravarEClassificarPalavra);
+if (btnApagarLetra) btnApagarLetra.addEventListener("click", apagarUltimaLetra);
+if (btnFecharPalavra) btnFecharPalavra.addEventListener("click", fecharPalavraAtual);
 if (btnTraduzirAgora) {
   btnTraduzirAgora.addEventListener("click", () => {
     fecharPalavraAtual();
@@ -283,11 +445,21 @@ if (btnTraduzirAgora) {
     ultimaFraseTraduzida = fraseAtual;
   });
 }
-if (btnNovaFrase) {
-  btnNovaFrase.addEventListener("click", novaFrase);
+if (btnRepetirAudio) {
+  btnRepetirAudio.addEventListener("click", () => falar(ultimaTraducaoTexto, "en-US"));
 }
-if (btnCamera) {
-  btnCamera.addEventListener("click", alternarCamera);
+if (btnNovaFrase) btnNovaFrase.addEventListener("click", novaFrase);
+if (btnCamera) btnCamera.addEventListener("click", alternarCamera);
+if (btnTrocarCamera) btnTrocarCamera.addEventListener("click", trocarCameraFrontalTraseira);
+if (chkModoDev) {
+  chkModoDev.addEventListener("change", () => {
+    if (!chkModoDev.checked) painelDev.hidden = true;
+  });
+}
+if (elFraseAtual) {
+  elFraseAtual.addEventListener("input", () => {
+    fraseAtual = elFraseAtual.value;
+  });
 }
 
 iniciarCamera();

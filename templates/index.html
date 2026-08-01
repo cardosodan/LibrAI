@@ -10,14 +10,19 @@
 <header>
   <h1>SinalizAI</h1>
   <p class="subtitulo">Reconhecimento de Libras em tempo real com visão computacional</p>
+  <span id="estado-conexao" class="estado-conexao ok">● conectado</span>
 </header>
 
 <main>
   <section class="painel-camera">
     <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas" hidden></canvas>
+    <canvas id="overlay-esqueleto"></canvas>
     <div id="overlay" class="overlay">Iniciando câmera...</div>
-    <button id="btn-camera" class="btn-camera">Parar câmera</button>
+    <div class="botoes-camera">
+      <button id="btn-trocar-camera" class="btn-camera" title="Trocar câmera frontal/traseira">🔄</button>
+      <button id="btn-camera" class="btn-camera">Parar câmera</button>
+    </div>
   </section>
 
   <section class="painel-controles">
@@ -31,29 +36,40 @@
         <p>Soletre palavra por palavra. Mantenha cada letra parada ~0,5s pra confirmar,
            afaste a mão ~1s pra fechar a palavra, e ~2,5s pra fechar a frase e traduzir.</p>
         <p class="letras-suportadas">Letras suportadas: {{ letras|join(', ') }}</p>
+
         <div class="construtor-frase">
           <div class="linha-construtor">
             <span class="rotulo">Letra atual</span>
             <span id="letra-atual" class="valor-destaque">—</span>
+            <div class="barra-progresso"><div id="barra-progresso-fill" class="barra-progresso-fill"></div></div>
           </div>
           <div class="linha-construtor">
             <span class="rotulo">Palavra</span>
             <span id="palavra-atual" class="valor-destaque">_</span>
           </div>
         </div>
+
         <div class="frase-box">
-          <span class="rotulo">Frase (Português)</span>
-          <p id="frase-atual">—</p>
+          <span class="rotulo">Frase (Português) — editável</span>
+          <textarea id="frase-atual" placeholder="A frase soletrada aparece aqui..."></textarea>
         </div>
         <div class="frase-box traducao-box">
           <span class="rotulo">Tradução (English)</span>
           <p id="frase-traduzida">—</p>
         </div>
+
         <div class="botoes-frase">
+          <button id="btn-apagar-letra">⌫ Apagar letra</button>
           <button id="btn-fechar-palavra">Fechar palavra</button>
           <button id="btn-traduzir-agora">Traduzir agora</button>
+          <button id="btn-repetir-audio">🔊 Ouvir de novo</button>
           <button id="btn-nova-frase">Nova frase</button>
         </div>
+
+        <label class="toggle-dev">
+          <input type="checkbox" id="chk-modo-dev"> Modo desenvolvedor (mostrar candidatos e confiança)
+        </label>
+        <div id="painel-dev" class="painel-dev" hidden></div>
       {% else %}
         <p class="aviso">Modelo do alfabeto ainda não foi treinado neste servidor.</p>
       {% endif %}
@@ -74,6 +90,50 @@
     </div>
 
     <div id="resultado" class="resultado"></div>
+  </section>
+
+  <section class="painel-historico">
+    <h2>Histórico da sessão</h2>
+    <ul id="lista-historico" class="lista-historico">
+      <li class="historico-vazio">Nenhuma frase traduzida ainda.</li>
+    </ul>
+  </section>
+
+  <section class="painel-guia">
+    <h2>Guia do alfabeto suportado</h2>
+    <div class="grade-guia">
+      {% for letra in letras %}
+      <div class="guia-item">
+        <img src="{{ url_for('static', filename='img/alfabeto_referencia/' ~ letra ~ '.jpg') }}" alt="Sinal da letra {{ letra }} em Libras" loading="lazy">
+        <span>{{ letra }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="painel-como-funciona">
+    <h2>Como funciona</h2>
+    <div class="pipeline">
+      <div class="pipeline-passo">📷<br>Webcam</div>
+      <div class="pipeline-seta">→</div>
+      <div class="pipeline-passo">✋<br>MediaPipe<br><small>21 pontos da mão</small></div>
+      <div class="pipeline-seta">→</div>
+      <div class="pipeline-passo">🤖<br>Modelo ML<br><small>Regressão Logística</small></div>
+      <div class="pipeline-seta">→</div>
+      <div class="pipeline-passo">🔤<br>Letra → Palavra → Frase</div>
+      <div class="pipeline-seta">→</div>
+      <div class="pipeline-passo">🌐<br>Tradução<br><small>PT → EN</small></div>
+      <div class="pipeline-seta">→</div>
+      <div class="pipeline-passo">🔊<br>Voz</div>
+    </div>
+    <p>
+      Cada letra do alfabeto manual de Libras é reconhecida a partir de 21 pontos-chave
+      da mão extraídos pelo MediaPipe, classificados por um modelo de Regressão Logística
+      treinado com <a href="https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset" target="_blank" rel="noopener">4.411 imagens reais</a>
+      (97,8% de F1 macro no teste). Letras confirmadas se juntam em palavras e frases, que
+      são traduzidas pro inglês e faladas em voz alta — tudo rodando localmente, sem
+      nenhuma API de IA generativa paga. Detalhes técnicos completos no README do projeto.
+    </p>
   </section>
 </main>
 

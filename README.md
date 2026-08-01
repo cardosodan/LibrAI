@@ -45,6 +45,26 @@ frase e traduz**, em tempo real:
    navegador — sem servidor de TTS, sem chave de API, sem depender de
    OS/plataforma no deploy).
 
+**Recursos de interface adicionais** (pedido explícito do usuário — "faça
+todos" numa lista de 11 melhorias):
+
+- **Overlay do esqueleto da mão** desenhado em cima do vídeo (canvas
+  transparente, `desenharEsqueleto()` em `app.js`) — mostra os 21 pontos e
+  as conexões que o MediaPipe está enxergando, em tempo real.
+- **Barra de progresso de confirmação** — enche conforme a letra atual
+  acumula leituras estáveis, até confirmar.
+- **Painel "modo desenvolvedor"** (checkbox) — mostra os 3 candidatos mais
+  prováveis e a confiança de cada um, não só o vencedor.
+- **Apagar última letra**, **editar a frase manualmente** (textarea, não
+  mais texto fixo), **histórico de frases da sessão** com replay de áudio
+  por item, e **botão de ouvir a tradução de novo**.
+- **Indicador de conexão** (topo da página) — avisa se o servidor parar de
+  responder, em vez de falhar silenciosamente.
+- **Troca de câmera frontal/traseira** e layout responsivo pra celular.
+- **Seção "Como funciona"** e **guia visual do alfabeto suportado** (miniaturas
+  reais de cada uma das 15 letras) direto na página — pra quem abre o link
+  sem passar pelo GitHub.
+
 **Honestidade sobre o escopo**: isso funciona de ponta a ponta pro alfabeto
 (soletração), que tem modelo real treinado. No modo palavra, cada
 reconhecimento (ainda por clique + 2s de gravação, não contínuo) também

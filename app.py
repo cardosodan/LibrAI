@@ -105,17 +105,24 @@ def reconhecer_letra():
     if frame is None:
         return jsonify({"erro": "Não consegui decodificar a imagem."}), 400
 
-    vetor = _extrator_mao.extrair_de_bgr(frame)
+    vetor, pontos = _extrator_mao.extrair_com_pontos_de_bgr(frame)
     if vetor is None:
         return jsonify({"detectado": False})
 
     modelo = _pacote_alfabeto["modelo"]
     probs = modelo.predict_proba([vetor])[0]
-    indice = int(np.argmax(probs))
+    ordem = np.argsort(probs)[::-1]
+    indice = int(ordem[0])
+    candidatos = [
+        {"letra": modelo.classes_[i], "confianca": float(probs[i])}
+        for i in ordem[:3]
+    ]
     return jsonify({
         "detectado": True,
         "letra": modelo.classes_[indice],
         "confianca": float(probs[indice]),
+        "candidatos": candidatos,
+        "landmarks": pontos,
     })
 
 

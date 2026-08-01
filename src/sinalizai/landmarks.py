@@ -55,13 +55,28 @@ class HandLandmarkExtractor:
 
     def extrair_de_bgr(self, frame_bgr: np.ndarray) -> np.ndarray | None:
         """Recebe um frame no formato do OpenCV (BGR) e devolve o vetor normalizado, ou None se nenhuma mão foi encontrada."""
-        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        resultado = self._landmarker.detect(img)
+        resultado = self._detectar(frame_bgr)
         if not resultado.hand_landmarks:
             return None
+        return self._normalizar(resultado.hand_landmarks[0])
+
+    def extrair_com_pontos_de_bgr(self, frame_bgr: np.ndarray):
+        """Igual `extrair_de_bgr`, mas também devolve os 21 pontos BRUTOS (x, y
+        normalizados 0-1 relativos ao tamanho da imagem, sem a translação/escala
+        aplicada pro classificador) — usado só pelo front-end pra desenhar o
+        esqueleto da mão em cima do vídeo, não pra classificação."""
+        resultado = self._detectar(frame_bgr)
+        if not resultado.hand_landmarks:
+            return None, None
         pontos = resultado.hand_landmarks[0]
-        return self._normalizar(pontos)
+        vetor = self._normalizar(pontos)
+        pontos_brutos = [[p.x, p.y] for p in pontos]
+        return vetor, pontos_brutos
+
+    def _detectar(self, frame_bgr: np.ndarray):
+        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        return self._landmarker.detect(img)
 
     def extrair_de_arquivo(self, caminho: str) -> np.ndarray | None:
         frame = cv2.imread(caminho)
