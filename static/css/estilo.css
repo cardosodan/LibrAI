@@ -1,11 +1,19 @@
 :root {
-  --bg-base: #0B0E14;
-  --bg-surface: #131826;
-  --bg-elevated: #1A2033;
-  --accent-signal: #FF6B4A;
-  --accent-confirm: #6FE7B7;
-  --text-primary: #F2EFE9;
-  --text-muted: #8890A0;
+  /* Tema claro e quente — troca completa da base escura anterior, não só
+     os accents. Cartão branco sobre fundo marfim (não branco puro sobre
+     branco puro — precisa do contraste do hairline border pra separar). */
+  --bg-base: #F6F3EC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #E3DCC9;
+  /* Tons escolhidos (não só "bonitos") pra passar 4.5:1 de contraste contra
+     bg-base E bg-surface — ferramenta de acessibilidade não pode ter texto
+     de accent ilegível; a primeira tentativa (âmbar mais claro) falhava em
+     2.87:1, verificado antes de aplicar, não depois. */
+  --accent-signal: #A3520A;   /* âmbar — "em análise", mantém a lógica "quente = atenção" */
+  --accent-confirm: #0D6B4F;  /* verde profundo — "confirmado" */
+  --text-primary: #201C16;
+  --text-muted: #746C5E;
+  --text-sobre-accent: #FFFFFF; /* texto em cima de um botão sólido de accent-signal */
 
   --fonte-display: "Space Grotesk", "Segoe UI", sans-serif;
   --fonte-corpo: "Inter", "Segoe UI", sans-serif;
@@ -112,8 +120,11 @@ header {
 }
 
 @keyframes respirar-motivo {
-  0%, 100% { opacity: 0.06; }
-  50% { opacity: 0.1; }
+  /* Levemente mais opaco que num tema escuro — cor escura em opacidade muito
+     baixa sobre fundo claro tende a sumir de vez, em vez de "brilhar" como
+     acontecia sobre o fundo grafite anterior. */
+  0%, 100% { opacity: 0.09; }
+  50% { opacity: 0.15; }
 }
 
 header h1,
@@ -159,17 +170,21 @@ header h1 {
 
 .estado-conexao.ok .ponto-pulsante {
   background: var(--accent-confirm);
-  box-shadow: 0 0 0 0 rgba(111, 231, 183, 0.6);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-confirm) 60%, transparent);
   animation: pulso-conexao 2s ease-out infinite;
 }
 
 .estado-conexao.erro { color: var(--accent-signal); }
 .estado-conexao.erro .ponto-pulsante { background: var(--accent-signal); }
 
+/* Usa color-mix() (derivado do token, não um rgba() fixo) de propósito —
+   foi exatamente um rgba() hardcoded desatualizado que causou o esqueleto
+   de mão desalinhado da paleta na rodada anterior. Trocar a paleta agora
+   não deixa nenhum resquício de cor velha pra trás. */
 @keyframes pulso-conexao {
-  0% { box-shadow: 0 0 0 0 rgba(111, 231, 183, 0.55); }
-  70% { box-shadow: 0 0 0 6px rgba(111, 231, 183, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(111, 231, 183, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-confirm) 55%, transparent); }
+  70% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent-confirm) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-confirm) 0%, transparent); }
 }
 
 /* --- Separador de pontos (substitui <hr>) --------------------------------- */
@@ -261,8 +276,12 @@ main {
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  background: rgba(11, 14, 20, 0.75);
-  color: var(--text-muted);
+  /* Sempre um véu escuro sobre o vídeo, mesmo no tema claro — precisa
+     escurecer a câmera ao vivo pra legibilidade, isso não depende do tema
+     do site. Por isso o texto aqui é branco fixo, não var(--text-muted)
+     (que no tema claro é escuro — ficaria ilegível em cima do véu escuro). */
+  background: rgba(10, 9, 6, 0.78);
+  color: rgba(255, 255, 255, 0.82);
   font-family: var(--fonte-hud);
   font-size: 0.9rem;
   text-align: center;
@@ -328,7 +347,7 @@ main {
 .btn-camera-principal {
   background: var(--accent-signal);
   border-color: var(--accent-signal);
-  color: #0B0E14;
+  color: var(--text-sobre-accent);
   font-weight: 500;
 }
 
@@ -341,7 +360,7 @@ main {
 }
 
 .btn-camera-principal.desligada:hover {
-  background: rgba(111, 231, 183, 0.1);
+  background: color-mix(in srgb, var(--accent-confirm) 10%, transparent);
   opacity: 1;
 }
 
@@ -402,7 +421,7 @@ main {
   margin-top: var(--space-2);
   padding: var(--space-3) var(--space-5);
   background: var(--accent-signal);
-  color: #0B0E14;
+  color: var(--text-sobre-accent);
   border: none;
   border-radius: 6px;
   font-family: var(--fonte-hud);
@@ -552,7 +571,7 @@ main {
 
 #btn-traduzir-agora:hover {
   border-color: var(--accent-confirm);
-  background: rgba(111, 231, 183, 0.1);
+  background: color-mix(in srgb, var(--accent-confirm) 10%, transparent);
 }
 
 .toggle-dev {
