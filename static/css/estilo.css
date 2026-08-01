@@ -1010,8 +1010,16 @@ footer a {
   margin-bottom: var(--space-2);
 }
 
-.modal-fechar {
+.modal-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   margin-top: var(--space-4);
+}
+
+.modal-fechar {
+  background: transparent;
+  border: 1px solid var(--text-muted);
 }
 
 /* --- Feedback de aprendizado (IA) ------------------------------------------ */
@@ -1026,6 +1034,14 @@ footer a {
 }
 
 .feedback-aprendizado b { color: var(--text-primary); }
+
+.link-parar-pratica {
+  display: inline-block;
+  margin-left: var(--space-2);
+  color: var(--accent-detail);
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 /* --- Pista facial (heurística em tempo real, modo dev) ---------------------- */
 .pista-facial {

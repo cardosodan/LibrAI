@@ -29,7 +29,7 @@ from flask import Flask, jsonify, render_template, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
-from sinalizai import config
+from sinalizai import config, feedback_aprendizado
 from sinalizai.landmarks import HandLandmarkExtractor, HolisticSequenceExtractor
 from sinalizai.modelo_dinamico import ClassificadorPalavrasLSTM
 
@@ -114,6 +114,7 @@ def reconhecer_letra():
     frame_b64 = corpo.get("frame")
     if not frame_b64:
         return jsonify({"erro": "Campo 'frame' (base64) é obrigatório."}), 400
+    letra_alvo = (corpo.get("letra_alvo") or "").strip().upper() or None
 
     frame = _base64_para_frame(frame_b64)
     if frame is None:
@@ -131,13 +132,20 @@ def reconhecer_letra():
         {"letra": modelo.classes_[i], "confianca": float(probs[i])}
         for i in ordem[:3]
     ]
-    return jsonify({
+
+    resposta = {
         "detectado": True,
         "letra": modelo.classes_[indice],
         "confianca": float(probs[indice]),
         "candidatos": candidatos,
         "landmarks": pontos,
-    })
+    }
+    # Feedback de aprendizado (modo prática): opt-in via 'letra_alvo' no corpo
+    # do POST — só calculado quando o front pede, pra não gastar CPU à toa em
+    # todo poll do reconhecimento normal.
+    if letra_alvo:
+        resposta["feedback_aprendizado"] = feedback_aprendizado.gerar_feedback(letra_alvo, vetor)
+    return jsonify(resposta)
 
 
 @app.route("/api/reconhecer-palavra", methods=["POST"])

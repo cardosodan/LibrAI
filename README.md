@@ -182,6 +182,40 @@ Os limiares (`LIMIAR_MOVIMENTO_AUTO`, `PARADO_MAX_AUTO_MS`,
 vocabulário real gravado (ainda não existe um) — esperado precisar de ajuste
 fino assim que houver sinais reais pra testar contra.
 
+## Feedback de aprendizado (compara sua pose com o padrão real da letra)
+
+Clicando numa letra no guia do alfabeto e em "PRATICAR ESTA LETRA", o site
+compara a pose atual da sua mão com a pose "padrão" daquela letra — calculada
+a partir das amostras REAIS de treino (`data/landmarks/alfabeto_landmarks.csv`),
+não uma pose inventada — e devolve uma dica de ajuste em português, tudo em
+tempo real enquanto você move a mão.
+
+**Deliberadamente determinístico, não um LLM**: `src/sinalizai/
+feedback_aprendizado.py` calcula, uma vez no carregamento, o centroide
+(pose média) de cada letra e os percentis 50/90 de distância das próprias
+amostras de treino até esse centroide. A cada quadro em modo prática:
+
+1. Compara os 21 pontos da mão atual com os 21 pontos do centroide da letra
+   alvo, ponto a ponto.
+2. O ponto com maior distância vira o "alvo da dica" (ex: "ponta do
+   indicador").
+3. Compara a distância desse ponto até o pulso, usuário vs. centroide —
+   mais perto do pulso que o esperado = dedo mais fechado/curvado; mais
+   longe = mais estendido — e converte isso numa dica direcional ("tente
+   estender mais" / "tente curvar mais").
+4. Uma "similaridade" (0-100%) é calculada usando o **p90 de distância
+   intra-classe da PRÓPRIA letra** como referência de "aceitável", não um
+   número global chutado — checado contra o dataset real: letras como M/N/P
+   têm uma variação natural bem maior que A/B/R (dataset combinado de duas
+   fontes, resoluções/ângulos diferentes), então uma referência única
+   penalizaria umas injustamente e seria frouxa demais com outras.
+
+Testado contra imagens reais do dataset: comparar uma foto real de "B" com o
+padrão de "B" dá ~65% de similaridade e "muito próximo, mantenha assim"; a
+MESMA foto comparada contra o padrão de "A" dá 0% e uma dica coerente
+("dedo mais estendido que o esperado — curve mais", já que A é um punho
+fechado e a mão na foto está com os dedos abertos fazendo B).
+
 ## Resultados reais (alfabeto)
 
 **Atualizado após expandir de 15 pra 21 letras** (mesclando o dataset original

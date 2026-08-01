@@ -42,6 +42,7 @@ const modalLetraTitulo = document.getElementById("modal-letra-titulo");
 const modalLetraImg = document.getElementById("modal-letra-img");
 const modalLetraStatus = document.getElementById("modal-letra-status");
 const btnFecharModal = document.getElementById("btn-fechar-modal");
+const btnPraticarLetra = document.getElementById("btn-praticar-letra");
 const feedbackAprendizado = document.getElementById("feedback-aprendizado");
 const pistaFacial = document.getElementById("pista-facial");
 const chkDeteccaoAutomatica = document.getElementById("chk-deteccao-automatica");
@@ -123,6 +124,10 @@ let bufferAutoPalavra = [];
 let pontoAnteriorAuto = null;
 let paradoDesdeAuto = null;
 let semMaoDesdeAuto = null;
+
+// --- Feedback de aprendizado (compara a pose com o "padrão" da letra) -----
+let letraModalAtual = null;   // qual letra o modal do guia está mostrando agora
+let letraAlvoPratica = null;  // != null enquanto o usuário está "praticando" uma letra específica
 
 async function iniciarCamera() {
   try {
@@ -377,6 +382,7 @@ function marcarLetraPraticada(letra) {
 // --- Modal da letra do guia --------------------------------------------------
 function abrirModalLetra(item) {
   const letra = item.dataset.letra;
+  letraModalAtual = letra;
   const img = item.querySelector("img");
   modalLetraTitulo.textContent = letra;
   modalLetraImg.src = img.src;
@@ -389,6 +395,45 @@ function abrirModalLetra(item) {
 
 function fecharModalLetra() {
   modalLetra.hidden = true;
+}
+
+// --- Feedback de aprendizado: comparar a pose com o padrão de uma letra ---
+function iniciarPraticaDeLetra(letra) {
+  letraAlvoPratica = letra;
+  fecharModalLetra();
+  // Feedback de aprendizado só faz sentido no modo Alfabeto (é lá que a mão
+  // é lida quadro a quadro) — troca de aba automaticamente se necessário.
+  const abaAlfabeto = document.querySelector('.aba[data-modo="alfabeto"]');
+  if (modoAtual !== "alfabeto" && abaAlfabeto) abaAlfabeto.click();
+  if (feedbackAprendizado) {
+    feedbackAprendizado.hidden = false;
+    feedbackAprendizado.innerHTML = `Praticando <b>${letra}</b> — posicione a mão em quadro para receber a dica.`;
+  }
+}
+
+function pararPratica() {
+  letraAlvoPratica = null;
+  if (feedbackAprendizado) {
+    feedbackAprendizado.hidden = true;
+    feedbackAprendizado.innerHTML = "";
+  }
+}
+
+function renderizarFeedbackAprendizado(feedback) {
+  if (!feedbackAprendizado || !letraAlvoPratica) return;
+  feedbackAprendizado.hidden = false;
+  if (!feedback) {
+    feedbackAprendizado.innerHTML = `Sem dado de treino suficiente pra '<b>${letraAlvoPratica}</b>' ainda.
+      <a href="#" class="link-parar-pratica">Parar prática</a>`;
+  } else {
+    const pct = Math.round(feedback.similaridade * 100);
+    feedbackAprendizado.innerHTML = `
+      Praticando <b>${letraAlvoPratica}</b> — similaridade com o padrão: <b>${pct}%</b><br>
+      ${feedback.dica}
+      <a href="#" class="link-parar-pratica">Parar prática</a>`;
+  }
+  const link = feedbackAprendizado.querySelector(".link-parar-pratica");
+  if (link) link.addEventListener("click", (ev) => { ev.preventDefault(); pararPratica(); });
 }
 
 function atualizarUiFrase() {
@@ -546,6 +591,12 @@ function processarDeteccaoLetra(dados) {
       ultimaFraseTraduzida = fraseAtual;
       traduzirFrase(fraseAtual);
     }
+    if (letraAlvoPratica && feedbackAprendizado) {
+      feedbackAprendizado.innerHTML = `Praticando <b>${letraAlvoPratica}</b> — posicione a mão em quadro para receber a dica.
+        <a href="#" class="link-parar-pratica">Parar prática</a>`;
+      const link = feedbackAprendizado.querySelector(".link-parar-pratica");
+      if (link) link.addEventListener("click", (ev) => { ev.preventDefault(); pararPratica(); });
+    }
     return;
   }
 
@@ -553,6 +604,7 @@ function processarDeteccaoLetra(dados) {
   desenharEsqueleto(dados.landmarks);
   elLetraAtual.textContent = `${dados.letra} (${(dados.confianca * 100).toFixed(0)}%)`;
   registrarConfianca(dados.confianca);
+  if (letraAlvoPratica) renderizarFeedbackAprendizado(dados.feedback_aprendizado);
 
   if (dados.confianca < CONFIANCA_MINIMA) return;
 
@@ -602,7 +654,7 @@ async function iniciarPollingAlfabeto() {
         const resposta = await fetch("/api/reconhecer-letra", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ frame }),
+          body: JSON.stringify({ frame, letra_alvo: letraAlvoPratica }),
         });
         const dados = await resposta.json();
         marcarConexao(true);
@@ -773,6 +825,7 @@ abas.forEach((aba) => {
     modoPalavraEl.hidden = modoAtual !== "palavra";
     resultado.textContent = "";
     resetarBufferAuto(); // troca de aba no meio de um sinal em detecção automática não deve deixar buffer "fantasma"
+    if (modoAtual !== "alfabeto") pararPratica(); // feedback de aprendizado só existe no modo Alfabeto
   });
 });
 
@@ -819,6 +872,11 @@ if (btnTema) btnTema.addEventListener("click", alternarTema);
 if (btnTelaCheia) btnTelaCheia.addEventListener("click", alternarTelaCheia);
 if (btnCopiarFrase) btnCopiarFrase.addEventListener("click", copiarFrase);
 if (btnFecharModal) btnFecharModal.addEventListener("click", fecharModalLetra);
+if (btnPraticarLetra) {
+  btnPraticarLetra.addEventListener("click", () => {
+    if (letraModalAtual) iniciarPraticaDeLetra(letraModalAtual);
+  });
+}
 if (modalLetra) {
   modalLetra.addEventListener("click", (evento) => {
     if (evento.target === modalLetra) fecharModalLetra();
