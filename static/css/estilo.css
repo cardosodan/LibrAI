@@ -161,12 +161,27 @@ header {
   overflow: hidden;
 }
 
-header h1,
+header .marca,
 header .tagline,
 header .subtitulo,
 header .estado-conexao {
   position: relative;
   z-index: 1;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.logo-icone {
+  height: 2.6rem;
+  width: auto;
+  /* leve sombra escura por baixo do traço colorido do ícone — sem isso ele
+     "flutua" sem nenhuma âncora visual no fundo quase-preto da constelação. */
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
 }
 
 header h1 {
