@@ -57,9 +57,10 @@ def main():
     deteccoes_mao = 0
     for pasta_classe in sorted(PASTA_TESTE.iterdir()):
         for video in sorted(pasta_classe.glob("*.mp4")):
-            seq = extrator.extrair_de_video(str(video))
+            seq, pista_facial = extrator.extrair_de_video(str(video))
             assert seq is not None, f"Falha ao extrair {video}"
             assert seq.shape == (config.SEQUENCE_LENGTH, config.DIM_FEATURES_FRAME), seq.shape
+            assert pista_facial is None or isinstance(pista_facial, str)
             if np.any(seq != 0):
                 deteccoes_mao += 1
             sequencias.append(seq)

@@ -48,9 +48,26 @@ NUM_LANDMARKS_MAO = 21          # pontos por mão (padrão MediaPipe Hands)
 DIM_LANDMARK = 3                # x, y, z por ponto
 NUM_LANDMARKS_POSE = 33          # pontos de pose (padrão MediaPipe Pose)
 
+# Subconjunto de pontos do Face Mesh (478 no total — a maioria irrelevante
+# pra gramática de Libras) relevantes pras marcas não-manuais: sobrancelha e
+# topo do olho (levantar sobrancelha = pergunta/surpresa), boca (aberta/larga
+# muda intensidade/negação), e os cantos externos dos olhos como referência
+# de escala (distância entre-olhos, estável pra normalizar o resto).
+INDICES_ROSTO = {
+    "sobrancelha_esq": 105, "olho_topo_esq": 159,
+    "sobrancelha_dir": 334, "olho_topo_dir": 386,
+    "labio_superior": 13, "labio_inferior": 14,
+    "canto_boca_esq": 61, "canto_boca_dir": 291,
+    "olho_externo_esq": 33, "olho_externo_dir": 263,
+}
+NUM_LANDMARKS_ROSTO = len(INDICES_ROSTO)  # 10
+
 # Dimensão do vetor de features por frame usado no modelo dinâmico (palavras):
-# pose (33) + mão esquerda (21) + mão direita (21), cada um com x,y,z.
-DIM_FEATURES_FRAME = (NUM_LANDMARKS_POSE + 2 * NUM_LANDMARKS_MAO) * DIM_LANDMARK  # 225
+# pose (33) + mão esquerda (21) + mão direita (21) + rosto (10), cada um com
+# x,y,z. O rosto entrou depois que o resto já estava construído — Libras usa
+# expressão facial pra gramática de verdade (negação, pergunta, intensidade),
+# não é enfeite; ver HolisticSequenceExtractor.
+DIM_FEATURES_FRAME = (NUM_LANDMARKS_POSE + 2 * NUM_LANDMARKS_MAO + NUM_LANDMARKS_ROSTO) * DIM_LANDMARK  # 255
 
 # Todo vídeo de palavra é reamostrado pra este número fixo de frames antes de
 # entrar na rede — sinais têm duração variável, mas o LSTM precisa de uma

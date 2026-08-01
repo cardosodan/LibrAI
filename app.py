@@ -155,7 +155,7 @@ def reconhecer_palavra():
     if not frames:
         return jsonify({"erro": "Não consegui decodificar nenhum frame."}), 400
 
-    seq = _extrator_holistic.extrair_de_frames(frames, fps=len(frames) / 2.0)
+    seq, pista_facial = _extrator_holistic.extrair_de_frames(frames, fps=len(frames) / 2.0)
     if seq is None:
         return jsonify({"detectado": False})
 
@@ -168,6 +168,7 @@ def reconhecer_palavra():
         "detectado": True,
         "palavra": _classes_palavras[indice],
         "confianca": float(probs[indice]),
+        "pista_facial": pista_facial,
     })
 
 

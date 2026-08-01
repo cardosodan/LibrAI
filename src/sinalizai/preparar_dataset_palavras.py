@@ -37,7 +37,7 @@ def main() -> None:
         pasta = config.PALAVRAS_RAW_DIR / palavra
         videos = sorted({v for padrao in EXTENSOES_VIDEO for v in pasta.glob(padrao)})
         for caminho in tqdm(videos, desc=f"Palavra {palavra}"):
-            seq = extrator.extrair_de_video(str(caminho))
+            seq, _pista_facial_nao_usada = extrator.extrair_de_video(str(caminho))
             if seq is None:
                 continue
             sequencias.append(seq)

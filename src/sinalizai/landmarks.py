@@ -96,7 +96,7 @@ class HandLandmarkExtractor:
 
 
 class HolisticSequenceExtractor:
-    """Extrai uma sequência de vetores de 225 features (pose + 2 mãos) de um vídeo."""
+    """Extrai uma sequência de vetores de 255 features (pose + 2 mãos + rosto) de um vídeo."""
 
     def __init__(self, min_confidence: float = 0.5):
         _checar_bundle(config.HOLISTIC_LANDMARKER_TASK)
@@ -112,10 +112,10 @@ class HolisticSequenceExtractor:
         # modelo a cada arquivo) exige acumular uma base entre um vídeo e outro.
         self._proxima_base_ms = 0
 
-    def extrair_de_video(self, caminho: str) -> np.ndarray | None:
+    def extrair_de_video(self, caminho: str) -> tuple[np.ndarray | None, str | None]:
         cap = cv2.VideoCapture(caminho)
         if not cap.isOpened():
-            return None
+            return None, None
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         frames = []
         while True:
@@ -125,12 +125,20 @@ class HolisticSequenceExtractor:
             frames.append(frame)
         cap.release()
         if not frames:
-            return None
+            return None, None
         return self.extrair_de_frames(frames, fps)
 
-    def extrair_de_frames(self, frames: list[np.ndarray], fps: float = 30.0) -> np.ndarray | None:
-        """Igual a `extrair_de_video`, mas recebe frames BGR já em memória (uso: webcam ao vivo)."""
+    def extrair_de_frames(
+        self, frames: list[np.ndarray], fps: float = 30.0
+    ) -> tuple[np.ndarray | None, str | None]:
+        """Igual a `extrair_de_video`, mas recebe frames BGR já em memória (uso: webcam
+        ao vivo). Devolve `(sequencia, pista_facial)` — a sequência pro classificador
+        LSTM e uma pista textual (heurística, não um classificador treinado) sobre
+        marcas não-manuais (sobrancelha levantada, boca aberta) detectadas ao longo
+        da gravação, ou `None` se não deu pra calcular nenhuma das duas."""
         frames_features = []
+        razoes_sobrancelha: list[float] = []
+        razoes_boca: list[float] = []
         timestamp_ms = self._proxima_base_ms
         for indice, frame in enumerate(frames):
             timestamp_ms = self._proxima_base_ms + int((indice / fps) * 1000)
@@ -138,16 +146,23 @@ class HolisticSequenceExtractor:
             img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
             resultado = self._landmarker.detect_for_video(img, timestamp_ms)
             frames_features.append(self._vetor_do_frame(resultado))
+            razao_sobrancelha, razao_boca = self._razoes_faciais(resultado)
+            if razao_sobrancelha is not None:
+                razoes_sobrancelha.append(razao_sobrancelha)
+                razoes_boca.append(razao_boca)
         self._proxima_base_ms = timestamp_ms + 1000  # margem de 1s antes do próximo lote
         if not frames_features:
-            return None
-        return _reamostrar(np.array(frames_features, dtype=np.float32), config.SEQUENCE_LENGTH)
+            return None, None
+        sequencia = _reamostrar(np.array(frames_features, dtype=np.float32), config.SEQUENCE_LENGTH)
+        pista = self._interpretar_pista_facial(razoes_sobrancelha, razoes_boca)
+        return sequencia, pista
 
     @staticmethod
     def _vetor_do_frame(resultado) -> np.ndarray:
         pose = _pontos_ou_zeros(resultado.pose_landmarks, config.NUM_LANDMARKS_POSE)
         mao_esq = _pontos_ou_zeros(resultado.left_hand_landmarks, config.NUM_LANDMARKS_MAO)
         mao_dir = _pontos_ou_zeros(resultado.right_hand_landmarks, config.NUM_LANDMARKS_MAO)
+        rosto = _pontos_selecionados_ou_zeros(resultado.face_landmarks, config.INDICES_ROSTO)
 
         if resultado.pose_landmarks:
             ombro_esq = np.array([pose[11 * 3], pose[11 * 3 + 1], pose[11 * 3 + 2]])
@@ -167,7 +182,60 @@ class HolisticSequenceExtractor:
         pose_norm = normalizar_bloco(pose, bool(resultado.pose_landmarks))
         mao_esq_norm = normalizar_bloco(mao_esq, bool(resultado.left_hand_landmarks))
         mao_dir_norm = normalizar_bloco(mao_dir, bool(resultado.right_hand_landmarks))
-        return np.concatenate([pose_norm, mao_esq_norm, mao_dir_norm])
+        rosto_norm = normalizar_bloco(rosto, bool(resultado.face_landmarks))
+        return np.concatenate([pose_norm, mao_esq_norm, mao_dir_norm, rosto_norm])
+
+    @staticmethod
+    def _razoes_faciais(resultado) -> tuple[float | None, float | None]:
+        """Duas distâncias geométricas simples do rosto, normalizadas pela distância
+        entre os cantos externos dos olhos (referência de escala estável, não muda
+        com expressão): sobrancelha-ao-olho (sobe ao levantar a sobrancelha) e
+        abertura de lábios (sobe com a boca aberta). Cru, não normalizado no espaço
+        de pose/mãos — usado só pra heurística de pista facial, não entra no vetor
+        de features do classificador."""
+        pontos = resultado.face_landmarks
+        if not pontos:
+            return None, None
+        idx = config.INDICES_ROSTO
+
+        def p(nome: str) -> np.ndarray:
+            ponto = pontos[idx[nome]]
+            return np.array([ponto.x, ponto.y])
+
+        escala = _distancia(p("olho_externo_esq"), p("olho_externo_dir")) or _EPS
+        dist_sobrancelha = (
+            _distancia(p("sobrancelha_esq"), p("olho_topo_esq"))
+            + _distancia(p("sobrancelha_dir"), p("olho_topo_dir"))
+        ) / 2
+        dist_boca = _distancia(p("labio_superior"), p("labio_inferior"))
+        return dist_sobrancelha / escala, dist_boca / escala
+
+    @staticmethod
+    def _interpretar_pista_facial(
+        razoes_sobrancelha: list[float], razoes_boca: list[float]
+    ) -> str | None:
+        """Heurística geométrica (NÃO um classificador de expressão treinado): compara
+        o pico da gravação com a própria linha de base (primeiros ~25% dos quadros,
+        assumidos como rosto neutro no início do sinal) — evita depender de um
+        limiar fixo, que variaria de rosto pra rosto. Libras usa expressão facial
+        como marca gramatical não-manual de verdade (sobrancelha levantada =
+        pergunta/surpresa; boca aberta = ênfase), não é só estética — mas isto aqui
+        é só um indício aproximado pra mostrar no modo dev, não uma classificação
+        confiável."""
+        if len(razoes_sobrancelha) < 5:
+            return None
+        n_base = max(1, len(razoes_sobrancelha) // 4)
+        base_sobrancelha = float(np.mean(razoes_sobrancelha[:n_base]))
+        pico_sobrancelha = float(np.max(razoes_sobrancelha))
+        base_boca = float(np.mean(razoes_boca[:n_base]))
+        pico_boca = float(np.max(razoes_boca))
+
+        pistas = []
+        if base_sobrancelha > _EPS and pico_sobrancelha / base_sobrancelha > 1.35:
+            pistas.append("sobrancelhas levantadas (indício de pergunta/surpresa)")
+        if base_boca > _EPS and pico_boca / base_boca > 1.6:
+            pistas.append("boca aberta (indício de ênfase)")
+        return " + ".join(pistas) if pistas else None
 
     def fechar(self):
         self._landmarker.close()
@@ -177,6 +245,17 @@ def _pontos_ou_zeros(pontos, n: int) -> np.ndarray:
     if not pontos:
         return np.zeros(n * 3, dtype=np.float32)
     return np.array([[p.x, p.y, p.z] for p in pontos], dtype=np.float32).flatten()
+
+
+def _pontos_selecionados_ou_zeros(pontos, indices: dict) -> np.ndarray:
+    """Igual `_pontos_ou_zeros`, mas extrai só um SUBCONJUNTO nomeado de índices
+    (usado pro rosto: 10 de 478 pontos do Face Mesh, os relevantes pra gramática
+    de Libras) em vez de todos os pontos disponíveis."""
+    if not pontos:
+        return np.zeros(len(indices) * 3, dtype=np.float32)
+    return np.array(
+        [[pontos[i].x, pontos[i].y, pontos[i].z] for i in indices.values()], dtype=np.float32
+    ).flatten()
 
 
 def _reamostrar(sequencia: np.ndarray, tamanho_alvo: int) -> np.ndarray:

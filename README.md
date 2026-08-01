@@ -21,7 +21,7 @@ Duas partes, propositalmente resolvidas com abordagens diferentes:
 | | Alfabeto manual (datilologia) | Palavras dinâmicas |
 |---|---|---|
 | Natureza do sinal | Pose estática (uma foto já basta) | Movimento ao longo do tempo |
-| Extração | MediaPipe **Hand Landmarker** (só mãos) | MediaPipe **Holistic Landmarker** (pose + mãos) |
+| Extração | MediaPipe **Hand Landmarker** (só mãos) | MediaPipe **Holistic Landmarker** (pose + mãos + rosto) |
 | Classificador | Random Forest (venceu Regressão Logística — ver Resultados) | LSTM bidirecional (PyTorch) |
 | Dataset | [Brazilian Sign Language Alphabet Dataset](https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset) (UNIVALI) + [Alfabeto em Libras](https://universe.roboflow.com/elainesilva/alfabeto-em-libras-qrvnw) (Roboflow, ElaineSilva) — 21 letras, ~6.100 imagens reais combinadas | Auto-gravado pela webcam (ver seção Dataset de Palavras) |
 | Status | **Treinado e funcionando**, métricas reais abaixo | Pipeline completo e testado (smoke test), aguardando vídeos reais |
@@ -99,11 +99,27 @@ pipeline usa:
   pose (ombro, cotovelo, tronco) porque muitos sinais de Libras usam também
   o braço/corpo, não só a mão — e o significado de uma palavra está na
   **trajetória**, então o classificador tem que processar uma sequência
-  (LSTM), não um vetor único.
+  (LSTM), não um vetor único. Também adiciona um subconjunto de 10 pontos do
+  rosto (sobrancelha, topo do olho, lábios, cantos da boca, cantos externos
+  dos olhos) — Libras usa expressão facial como **marca gramatical
+  não-manual** de verdade (sobrancelha levantada = pergunta/surpresa; boca
+  aberta = ênfase/negação), não é enfeite. Só esses 10 dos 478 pontos do Face
+  Mesh entram no vetor — o resto (contorno do rosto, nariz, etc.) não carrega
+  informação gramatical relevante aqui.
 
-Os dois extratores normalizam os pontos (translação pro pulso/centro dos
-ombros + escala pela própria mão/largura dos ombros) — sem isso o modelo
-aprenderia "a pessoa está longe da câmera" em vez do sinal em si.
+Os três extratores normalizam os pontos (translação pro pulso/centro dos
+ombros + escala pela própria mão/largura dos ombros/distância entre os olhos)
+— sem isso o modelo aprenderia "a pessoa está longe da câmera" em vez do
+sinal em si.
+
+Além do vetor de features (pro classificador LSTM), o extrator de palavras
+também calcula uma **pista facial heurística** em tempo real — não é um
+classificador de expressão treinado, é geometria simples (distância
+sobrancelha-olho e abertura de lábios, cada uma comparada com a própria
+linha de base no início da gravação, não com um limiar fixo) — exibida no
+modo dev como indício aproximado ("sobrancelhas levantadas", "boca aberta"),
+não como fato. Ver `HolisticSequenceExtractor._interpretar_pista_facial` em
+`src/sinalizai/landmarks.py`.
 
 ## Resultados reais (alfabeto)
 
@@ -192,7 +208,7 @@ acurácia que não significa nada.
 ## Arquitetura do classificador de palavras (LSTM)
 
 ```
-sequência (30 frames × 225 features) 
+sequência (30 frames × 255 features: pose+mãos+rosto) 
     → LSTM bidirecional, 2 camadas, 128 unidades ocultas
     → último passo de tempo (forward + backward concatenados)
     → Linear(256→128) → ReLU → Dropout → Linear(128→num_classes)

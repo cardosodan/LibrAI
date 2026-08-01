@@ -635,6 +635,12 @@ async function gravarEClassificarPalavra() {
       atualizarUiFrase();
       ultimaFraseTraduzida = fraseAtual;
       traduzirFrase(fraseAtual);
+      if (pistaFacial && chkModoDev && chkModoDev.checked) {
+        pistaFacial.hidden = false;
+        pistaFacial.textContent = dados.pista_facial
+          ? `Marca facial (heurística): ${dados.pista_facial}`
+          : "Marca facial (heurística): nenhuma notada nesta gravação.";
+      }
     } else {
       resultado.textContent = "Não detectei nada — tente de novo mais perto da câmera.";
     }
