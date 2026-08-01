@@ -22,6 +22,7 @@ const btnApagarLetra = document.getElementById("btn-apagar-letra");
 const btnFecharPalavra = document.getElementById("btn-fechar-palavra");
 const btnTraduzirAgora = document.getElementById("btn-traduzir-agora");
 const btnRepetirAudio = document.getElementById("btn-repetir-audio");
+const btnOuvirPortugues = document.getElementById("btn-ouvir-portugues");
 const btnNovaFrase = document.getElementById("btn-nova-frase");
 const btnCamera = document.getElementById("btn-camera");
 const btnTrocarCamera = document.getElementById("btn-trocar-camera");
@@ -76,6 +77,7 @@ let palavraAtual = "";
 let fraseAtual = "";
 let ultimaFraseTraduzida = "";
 let ultimaTraducaoTexto = "";
+let ultimaFrasePortugues = "";
 let semMaoDesde = null;
 let falhasConsecutivas = 0;
 let historicoSessao = [];
@@ -507,6 +509,10 @@ async function traduzirFrase(texto) {
       }
     }
     ultimaTraducaoTexto = dados.traducao;
+    // Prefere a versão gramatical (LLM) quando existir — é mais natural de
+    // ouvir que a sequência crua soletrada, que costuma vir sem artigos/
+    // preposições (gramática de Libras, não de português).
+    ultimaFrasePortugues = dados.texto_gramatical || alvo;
     adicionarAoHistorico(alvo, dados.traducao);
     falar(dados.traducao, "en-US");
   } catch (erro) {
@@ -538,6 +544,7 @@ function novaFrase() {
   palavraAtual = "";
   fraseAtual = "";
   ultimaFraseTraduzida = "";
+  ultimaFrasePortugues = "";
   letraConfirmada = null;
   letraCandidata = null;
   contagemCandidata = 0;
@@ -861,6 +868,13 @@ if (btnTraduzirAgora) {
 }
 if (btnRepetirAudio) {
   btnRepetirAudio.addEventListener("click", () => falar(ultimaTraducaoTexto, "en-US"));
+}
+if (btnOuvirPortugues) {
+  btnOuvirPortugues.addEventListener("click", () => {
+    // Se já traduziu, usa a versão gramatical (mais natural de ouvir);
+    // senão, lê a frase em português tal como está editável na tela agora.
+    falar(ultimaFrasePortugues || fraseAtual, "pt-BR");
+  });
 }
 if (btnNovaFrase) btnNovaFrase.addEventListener("click", novaFrase);
 if (btnCamera) btnCamera.addEventListener("click", alternarCamera);
