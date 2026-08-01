@@ -64,11 +64,18 @@ label:focus-within {
 }
 
 button {
-  transition: transform 0.1s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.12s ease, filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Todo botão do site levanta 1px ao passar o mouse e "pressiona" ao clicar —
+   feedback tátil consistente em cima das cores específicas de cada botão
+   (definidas mais abaixo, por componente). */
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 button:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: translateY(0) scale(0.97);
 }
 
 /* --- Header + motivo de assinatura (esqueleto de mão) -------------------- */
@@ -325,7 +332,7 @@ main {
   font-weight: 500;
 }
 
-.btn-camera-principal:hover { opacity: 0.88; border-color: var(--accent-signal); }
+.btn-camera-principal:hover { filter: brightness(1.15); border-color: var(--accent-signal); }
 
 .btn-camera-principal.desligada {
   background: transparent;
@@ -368,6 +375,7 @@ main {
 .aba:hover {
   border-color: var(--text-muted);
   color: var(--text-primary);
+  background: var(--bg-elevated);
 }
 
 .aba.ativa {
@@ -478,6 +486,12 @@ main {
 
 .frase-box:focus-within {
   border-color: var(--accent-signal);
+}
+
+/* Só a caixa com o textarea (não a de tradução, que é só leitura) sinaliza
+   que é editável antes mesmo do clique. */
+.frase-box:not(.traducao-box):hover {
+  border-color: var(--text-muted);
 }
 
 .frase-box p {

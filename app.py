@@ -34,6 +34,19 @@ from sinalizai.modelo_dinamico import ClassificadorPalavrasLSTM
 
 app = Flask(__name__)
 
+
+def _versao_estatico(caminho_relativo: str) -> int:
+    """Retorna a data de modificação do arquivo estático (epoch, int) pra usar
+    como query string de cache-busting (?v=...) nos links de CSS/JS — sem
+    isso, o navegador às vezes reaproveita uma versão em cache mesmo depois
+    de um F5 normal, e cada mudança de estilo exigiria explicar "dá um
+    hard-refresh" de novo."""
+    caminho = Path(app.static_folder) / caminho_relativo
+    return int(caminho.stat().st_mtime) if caminho.exists() else 0
+
+
+app.jinja_env.globals["versao_estatico"] = _versao_estatico
+
 _pacote_alfabeto = None
 _extrator_mao = None
 _modelo_palavras = None
