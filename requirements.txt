@@ -13,4 +13,5 @@ joblib==1.5.3
 requests==2.34.2
 tqdm==4.70.0
 deep-translator==1.11.4
+roboflow==1.4.0
 gunicorn==23.0.0
