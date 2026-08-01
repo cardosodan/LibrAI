@@ -1,23 +1,26 @@
 :root {
-  /* Paleta com hierarquia clara — motivo da troca: verde/amarelo/azul
-     saturados lado a lado davam "efeito bandeira/torcida", sem uma cor
-     dominante. Agora --bg-base domina ~90% da tela (quase preto, leve tom
-     verde-noturno); ouro e verde continuam com função de estado (igual
-     sempre); azul-noite NUNCA é protagonista — só traço fino/detalhe. */
-  --bg-base: #0A120F;
-  --bg-surface: #121C17;
-  --bg-elevated: #1A2A22;
-  /* Contraste verificado: ouro passa bem (8.5:1+); verde fica em 4.0-4.4:1
-     contra bg-base/bg-surface (levemente abaixo do 4.5:1 ideal pra texto
-     normal, mas usado aqui só em texto grande/negrito ou não-texto, então
-     aceito); azul-detalhe (~2.2:1) é baixo de propósito — nunca vira texto,
-     só borda/ícone pequeno, onde esse contraste discreto é o efeito querido. */
-  --accent-signal: #D9A62E;   /* ouro fosco — "em análise" */
-  --accent-confirm: #1F8A5F;  /* verde profundo — "confirmado" */
-  --accent-detail: #2B4C7E;   /* azul-noite — só detalhe discreto, nunca protagonista */
-  --text-primary: #F5F1E6;
-  --text-muted: #8B9C93;
-  --text-sobre-accent: #0A120F; /* texto ESCURO em cima do botão de ouro (só 1.97:1 se fosse texto claro) */
+  /* Paleta LibrAI (rebrand): mesma hierarquia de sempre (1 cor de fundo
+     dominante + 3 accents semânticos), mas os 3 accents agora seguem o
+     azul/verde/amarelo da logo em vez do ouro/verde-floresta/azul-noite
+     mais terrosos de antes — --bg-base continua dominando ~90% da tela,
+     agora um quase-preto com leve tom AZULADO (não mais esverdeado) pra
+     combinar com a nova identidade. Contraste recalculado do zero pros 3
+     accents (fórmula de luminância relativa WCAG), não só reaproveitado:
+     amarelo 10.6:1, verde 7.0:1, azul 5.0:1 contra bg-base — os 3 acima do
+     mínimo de 4.5:1 pra texto normal, diferente da paleta anterior (que
+     aceitava o verde a 4.0-4.4:1 e o azul bem abaixo disso de propósito).
+     Azul deixou de ser só "detalhe discreto nunca-protagonista" — na nova
+     identidade ele é uma das 3 cores centrais da marca, então ganhou
+     contraste real (5.0:1, usável como texto pequeno/ícone se precisar). */
+  --bg-base: #0A0F14;
+  --bg-surface: #101820;
+  --bg-elevated: #182430;
+  --accent-signal: #F2B705;   /* amarelo — "em análise" */
+  --accent-confirm: #22B26A;  /* verde — "confirmado" */
+  --accent-detail: #4E7DEB;   /* azul — detalhe/assinatura, ainda discreto na hierarquia mas legível */
+  --text-primary: #F0F3F5;
+  --text-muted: #8A97A3;
+  --text-sobre-accent: #0A0F14; /* texto ESCURO em cima dos botões de amarelo/verde/azul (5.0:1+ nos 3) */
 
   --fonte-display: "Space Grotesk", "Segoe UI", sans-serif;
   --fonte-corpo: "Inter", "Segoe UI", sans-serif;
@@ -38,22 +41,26 @@
   --space-16: 64px;
 }
 
-/* Tema claro — mesma hierarquia (1 cor dominante, ouro/verde de estado, azul
-   só detalhe), luminância invertida. Ativado via [data-theme="light"] no
-   <html>, alternável em runtime (botão no header) e persistido no
-   localStorage. Contraste checado de novo pros 3 accents nesse fundo claro
-   — o ouro do tema escuro (#D9A62E) falhava aqui (3.77:1), por isso é mais
-   escuro nesta variação (#8A5F0C, 5.0:1+). */
+/* Tema claro — mesma hierarquia (1 cor de fundo dominante, amarelo/verde de
+   estado, azul de assinatura), luminância invertida. Ativado via
+   [data-theme="light"] no <html>, alternável em runtime (botão no header) e
+   persistido no localStorage. Fundo trocado de bege quente (paleta antiga)
+   pra um cinza-azulado bem claro, coerente com o bg-base azulado do tema
+   escuro. Os 3 accents do tema escuro (amarelo/verde/azul vivos, pensados
+   pra saltar num fundo quase-preto) não passariam no contraste aqui — cada
+   um foi escurecido/saturado até passar de 4.5:1 contra os 3 fundos claros
+   (amarelo 5.7-6.4:1, verde 5.9-6.6:1, azul 6.3-7.2:1, todos recalculados
+   com a fórmula de luminância relativa WCAG antes de escolher o hex final). */
 :root[data-theme="light"] {
-  --bg-base: #F5F2E9;
+  --bg-base: #EEF2F7;
   --bg-surface: #FFFFFF;
-  --bg-elevated: #E8E2D0;
-  --accent-signal: #8A5F0C;
-  --accent-confirm: #0F6B4A;
-  --accent-detail: #2B4C7E;
-  --text-primary: #1D1B14;
-  --text-muted: #6B6656;
-  --text-sobre-accent: #FFFFFF; /* invertido: aqui accent-signal é escuro, texto precisa ser claro */
+  --bg-elevated: #DCE4EE;
+  --accent-signal: #7A5A08;
+  --accent-confirm: #0C6B3B;
+  --accent-detail: #1E4FBD;
+  --text-primary: #151A22;
+  --text-muted: #5B6672;
+  --text-sobre-accent: #FFFFFF; /* invertido: aqui os 3 accents são escuros, texto precisa ser claro (6.4-7.2:1) */
 }
 
 * { box-sizing: border-box; }
@@ -155,6 +162,7 @@ header {
 }
 
 header h1,
+header .tagline,
 header .subtitulo,
 header .estado-conexao {
   position: relative;
@@ -168,10 +176,18 @@ header h1 {
   color: var(--text-primary);
   display: inline-block;
   /* --accent-detail (azul) entra como traço fino embaixo do título, não
-     como cor do texto — o azul tem contraste baixo de propósito (~2.2:1),
-     legível só funcionaria se ele fosse decoração, nunca texto principal. */
+     como cor do texto — mantém o papel discreto de assinatura mesmo tendo
+     ganho contraste de verdade na paleta LibrAI (5.0:1, ver :root). */
   border-bottom: 2px solid var(--accent-detail);
   padding-bottom: var(--space-1);
+}
+
+.tagline {
+  color: var(--accent-confirm);
+  margin: var(--space-2) 0 0;
+  font-size: 1rem;
+  font-weight: 500;
+  font-style: italic;
 }
 
 .subtitulo {

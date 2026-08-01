@@ -1,7 +1,7 @@
 ---
-title: SinalizAI
+title: LibrAI
 emoji: 🤟
-colorFrom: gray
+colorFrom: blue
 colorTo: yellow
 sdk: docker
 app_port: 7860
@@ -9,7 +9,14 @@ pinned: false
 license: mit
 ---
 
-# SinalizAI
+# LibrAI
+
+*Conectando sinais ao mundo.* — Libras → Português • English
+
+> Rebrand de "SinalizAI" pra "LibrAI" (nome/identidade visível ao usuário).
+> O pacote Python (`src/sinalizai/`) e o nome da pasta local continuam
+> `sinalizai` de propósito — é só o nome técnico interno, renomear isso
+> exigiria tocar em todo import do projeto sem nenhum ganho visível.
 
 Reconhecimento de Libras (Língua Brasileira de Sinais) em tempo real via
 webcam, usando MediaPipe + Machine Learning — sem depender de nenhuma API de
