@@ -1,19 +1,18 @@
 :root {
-  /* De volta a um fundo escuro (o usuário rejeitou o tema claro — "não
-     quero fundo branco"), mas com um par de accent DIFERENTE do coral/menta
-     original (que também tinha sido rejeitado antes) — âmbar quente +
-     verde-esmeralda, mais saturados/claros que na versão clara, porque
-     fundo escuro pede accent mais brilhante pra manter o mesmo contraste. */
-  --bg-base: #0E0B08;
-  --bg-surface: #17130E;
-  --bg-elevated: #211B13;
-  /* Contraste verificado (não só "bonito"): os dois passam 9:1+ contra
-     bg-base/bg-surface, bem acima do mínimo de 4.5:1. */
-  --accent-signal: #F0A73E;   /* âmbar quente — "em análise" */
-  --accent-confirm: #3DDC97;  /* verde-esmeralda — "confirmado" */
-  --text-primary: #F3EFE7;
-  --text-muted: #9A917F;
-  --text-sobre-accent: #0E0B08; /* texto ESCURO em cima do botão (accent-signal aqui é claro, não escuro) */
+  /* Meio-termo entre o escuro anterior (rejeitado por "escuro demais") e o
+     branco (rejeitado antes disso) — um azul médio, nem preto nem branco.
+     As 3 cores da bandeira aparecem de propósito: azul como base/fundo
+     (não é só decoração, é a própria identidade do site), amarelo e verde
+     como os 2 accents funcionais de sempre (análise / confirmado). */
+  --bg-base: #22406A;
+  --bg-surface: #2A4C7C;
+  --bg-elevated: #345A8E;
+  /* Contraste verificado: os dois passam 4.9:1+ contra bg-base/bg-surface. */
+  --accent-signal: #F4C430;   /* amarelo — "em análise" */
+  --accent-confirm: #3DDC97;  /* verde — "confirmado" */
+  --text-primary: #F7F5EF;
+  --text-muted: #C4D2E4;
+  --text-sobre-accent: #14243B; /* texto ESCURO em cima do botão (accent-signal/confirm aqui são claros) */
 
   --fonte-display: "Space Grotesk", "Segoe UI", sans-serif;
   --fonte-corpo: "Inter", "Segoe UI", sans-serif;
@@ -94,38 +93,6 @@ header {
   overflow: hidden;
 }
 
-.hero-mao {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 340px;
-  height: 460px;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.hero-mao-linhas path {
-  fill: none;
-  stroke: var(--accent-signal);
-  stroke-width: 0.6;
-  stroke-linecap: round;
-}
-
-.hero-mao-pontos circle {
-  fill: var(--accent-confirm);
-}
-
-.hero-mao-linhas,
-.hero-mao-pontos {
-  animation: respirar-motivo 9s ease-in-out infinite;
-}
-
-@keyframes respirar-motivo {
-  0%, 100% { opacity: 0.07; }
-  50% { opacity: 0.12; }
-}
-
 header h1,
 header .subtitulo,
 header .estado-conexao {
@@ -186,29 +153,16 @@ header h1 {
   100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-confirm) 0%, transparent); }
 }
 
-/* --- Separador de pontos (substitui <hr>) --------------------------------- */
-/* Onda do calçadão de Copacabana — pedido explícito do usuário de uma "vibe
-   Brasil" reconhecível de verdade, não só uma referência explicada em
-   comentário. Usada como separador de seção (sutil, cor neutra) e como
-   faixa de destaque no rodapé do header (mais viva, cor de accent). */
-.separador-calcadao {
+/* --- Separador simples (substitui <hr>) ----------------------------------- */
+/* Sem ondas/motivo decorativo — o usuário achou as linhas anteriores
+   (esqueleto de mão curvo + onda do calçadão) poluídas demais. Um traço
+   fino resolve o mesmo papel (separar seções) sem chamar atenção. */
+.separador-simples {
   flex: 1 1 100%;
-  color: var(--text-muted);
-  opacity: 0.5;
+  height: 1px;
+  background: var(--bg-elevated);
   margin: var(--space-2) 0;
 }
-
-.separador-calcadao svg { display: block; }
-
-.faixa-calcadao {
-  position: relative;
-  z-index: 1;
-  color: var(--accent-signal);
-  margin-top: var(--space-5);
-  opacity: 0.9;
-}
-
-.faixa-calcadao svg { display: block; }
 
 main {
   display: flex;
@@ -304,8 +258,7 @@ main {
   height: 98px;
 }
 
-.spinner-mao path {
-  fill: none;
+.spinner-mao line {
   stroke: var(--accent-signal);
   stroke-width: 1.4;
   stroke-linecap: round;
@@ -818,7 +771,6 @@ footer a {
 @media (max-width: 640px) {
   header { padding: var(--space-6) var(--space-4) var(--space-3); }
   header h1 { font-size: 1.6rem; }
-  .hero-mao { width: 220px; height: 300px; }
   main { padding: var(--space-3) var(--space-3) var(--space-8); gap: var(--space-4); }
   .painel-camera { min-height: 260px; flex-basis: 100%; }
   .painel-controles { flex-basis: 100%; padding: var(--space-4); }
@@ -832,12 +784,10 @@ footer a {
 
 /* --- Acessibilidade: respeita a preferência de menos movimento ----------- */
 @media (prefers-reduced-motion: reduce) {
-  .hero-mao-linhas,
-  .hero-mao-pontos,
   .ponto-pulsante,
   .estado-conexao.ok .ponto-pulsante,
   .visor-scanner.analisando .bracket,
-  .spinner-mao path,
+  .spinner-mao line,
   .spinner-mao circle,
   #letra-atual,
   #palavra-atual,
