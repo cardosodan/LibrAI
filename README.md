@@ -15,6 +15,44 @@ Duas partes, propositalmente resolvidas com abordagens diferentes:
 | Dataset | [Brazilian Sign Language Alphabet Dataset](https://github.com/biankatpas/Brazilian-Sign-Language-Alphabet-Dataset) (4.411 imagens reais, UNIVALI) | Auto-gravado pela webcam (ver seção Dataset de Palavras) |
 | Status | **Treinado e funcionando**, métricas reais abaixo | Pipeline completo e testado (smoke test), aguardando vídeos reais |
 
+## Tradução ao vivo: Libras → Português → Inglês, com voz
+
+A demo web (`app.py`) não só identifica letra por letra — ela **monta a
+frase e traduz**, em tempo real:
+
+1. **Reconhecimento contínuo e estável** (não é mais "clique e tire uma
+   foto"): o navegador consulta `/api/reconhecer-letra` a cada 180ms, mas uma
+   letra só é **confirmada** (entra na palavra) depois de aparecer estável
+   em 4 leituras seguidas com confiança ≥ 60% — isso é o que resolve "rápida
+   E certa" ao mesmo tempo: feedback quase instantâneo na tela (`letra
+   atual`), mas sem deixar uma detecção isolada/ruidosa virar letra errada
+   na palavra. Toda essa lógica de estabilidade roda no **cliente**
+   (`static/js/app.js`), o backend continua stateless (1 frame → 1
+   predição), mais simples de escalar/hospedar.
+2. **Montagem automática de palavra e frase**: afastar a mão por ~0,9s fecha
+   a palavra atual (junta as letras confirmadas); ~2,5s sem mão fecha a
+   frase inteira e dispara a tradução sozinho. Também dá pra forçar isso na
+   mão (botões "Fechar palavra" / "Traduzir agora" / "Nova frase").
+3. **Tradução** via `/api/traduzir` (backend), usando `deep-translator`
+   (wrapper livre/sem chave de API sobre o Google Translate) — **só
+   português → inglês por enquanto**, a pedido explícito; adicionar
+   francês/espanhol/etc é só acrescentar uma entrada em
+   `IDIOMAS_SUPORTADOS` (`app.py`), o `GoogleTranslator` já suporta qualquer
+   par de idiomas. Resultado cacheado em memória (mesma frase não traduz de
+   novo).
+4. **Voz**: assim que a tradução chega, o navegador fala o texto em inglês
+   em voz alta via `window.speechSynthesis` (Web Speech API nativa do
+   navegador — sem servidor de TTS, sem chave de API, sem depender de
+   OS/plataforma no deploy).
+
+**Honestidade sobre o escopo**: isso funciona de ponta a ponta pro alfabeto
+(soletração), que tem modelo real treinado. No modo palavra, cada
+reconhecimento (ainda por clique + 2s de gravação, não contínuo) também
+entra na frase e dispara tradução — mas como não há vocabulário de palavra
+treinado neste repositório ainda (ver seção seguinte), isso está pronto pra
+funcionar assim que houver dados, não é uma funcionalidade "fake" — só está
+sem uso real até lá.
+
 ## Por que não "só jogar YOLOv8 em tudo"
 
 YOLO resolve "onde está um objeto" (bounding box) — não "qual é a pose da
@@ -231,6 +269,17 @@ SinalizAI/
   botão e gravar uma janela fixa de 2s, não segmenta sinais dentro de um
   vídeo corrido (esse é um problema de pesquisa em aberto — "continuous
   sign language recognition" — de propósito fora do escopo de um MVP solo).
+- **Tradução só português → inglês por enquanto** — a pedido explícito, não
+  limitação técnica (ver seção "Tradução ao vivo" — adicionar idioma é
+  trivial).
+- **Letra repetida na mesma palavra exige um toque de "reset"**: a lógica de
+  estabilidade só confirma uma letra NOVA quando ela é diferente da última
+  confirmada — soletrar algo com letra dobrada (ex: "ss") exige afastar a
+  mão brevemente entre as duas, senão a segunda ocorrência não conta como
+  uma confirmação nova.
+- **Voz depende do navegador** (`window.speechSynthesis`, Web Speech API) —
+  funciona nos principais navegadores desktop, mas suporte/qualidade de voz
+  em inglês pode variar por SO/navegador; sem fallback de TTS server-side.
 
 ## Próximos passos
 
@@ -240,6 +289,9 @@ SinalizAI/
   (clássico em reconhecimento de gesto com poucos dados por classe).
 - Cobrir as letras dinâmicas (H, J, K, X, Y, Z) reaproveitando o pipeline de
   sequência já construído pras palavras.
+- Mais idiomas de tradução (francês, espanhol, ...) — trivial de adicionar
+  em `IDIOMAS_SUPORTADOS` (`app.py`), só não veio nesta rodada por pedido
+  explícito de focar em português→inglês primeiro.
 - Validar com um sinalizante/intérprete de Libras de verdade — o feedback
   que mais importa e que nenhuma métrica offline substitui.
 

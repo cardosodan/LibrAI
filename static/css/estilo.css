@@ -137,6 +137,80 @@ main {
   min-height: 2rem;
 }
 
+.construtor-frase {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.linha-construtor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.rotulo {
+  color: var(--texto-fraco);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.valor-destaque {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--acento);
+}
+
+.frase-box {
+  margin-top: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+}
+
+.frase-box p {
+  margin: 0.3rem 0 0;
+  font-size: 1.15rem;
+  word-break: break-word;
+}
+
+.traducao-box {
+  border-color: var(--sucesso);
+}
+
+.traducao-box p {
+  color: var(--sucesso);
+}
+
+.botoes-frase {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.botoes-frase button {
+  padding: 0.55rem 0.9rem;
+  background: transparent;
+  color: var(--texto);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.botoes-frase button:hover {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+#btn-traduzir-agora {
+  border-color: var(--sucesso);
+  color: var(--sucesso);
+}
+
 footer {
   text-align: center;
   color: var(--texto-fraco);

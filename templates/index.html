@@ -27,8 +27,32 @@
 
     <div id="modo-alfabeto" class="modo">
       {% if alfabeto_disponivel %}
-        <p>Mostre uma letra estática do alfabeto de Libras pra câmera. Reconhecimento contínuo.</p>
+        <p>Soletre palavra por palavra. Mantenha cada letra parada ~0,5s pra confirmar,
+           afaste a mão ~1s pra fechar a palavra, e ~2,5s pra fechar a frase e traduzir.</p>
         <p class="letras-suportadas">Letras suportadas: {{ letras|join(', ') }}</p>
+        <div class="construtor-frase">
+          <div class="linha-construtor">
+            <span class="rotulo">Letra atual</span>
+            <span id="letra-atual" class="valor-destaque">—</span>
+          </div>
+          <div class="linha-construtor">
+            <span class="rotulo">Palavra</span>
+            <span id="palavra-atual" class="valor-destaque">_</span>
+          </div>
+        </div>
+        <div class="frase-box">
+          <span class="rotulo">Frase (Português)</span>
+          <p id="frase-atual">—</p>
+        </div>
+        <div class="frase-box traducao-box">
+          <span class="rotulo">Tradução (English)</span>
+          <p id="frase-traduzida">—</p>
+        </div>
+        <div class="botoes-frase">
+          <button id="btn-fechar-palavra">Fechar palavra</button>
+          <button id="btn-traduzir-agora">Traduzir agora</button>
+          <button id="btn-nova-frase">Nova frase</button>
+        </div>
       {% else %}
         <p class="aviso">Modelo do alfabeto ainda não foi treinado neste servidor.</p>
       {% endif %}

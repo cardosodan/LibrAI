@@ -9,18 +9,21 @@ Rotas:
     GET  /                        página da demo
     POST /api/reconhecer-letra    1 frame -> letra do alfabeto + confiança
     POST /api/reconhecer-palavra  N frames (~2s) -> palavra + confiança
+    POST /api/traduzir            texto em português -> tradução (inglês, por enquanto)
 """
 from __future__ import annotations
 
 import base64
 import json
 import sys
+import time
 from pathlib import Path
 
 import cv2
 import joblib
 import numpy as np
 import torch
+from deep_translator import GoogleTranslator
 from flask import Flask, jsonify, render_template, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
@@ -145,6 +148,43 @@ def reconhecer_palavra():
         "palavra": _classes_palavras[indice],
         "confianca": float(probs[indice]),
     })
+
+
+# Idiomas de destino suportados por enquanto — só inglês, a pedido do usuário
+# ("pode fazer apenas português e inglês por enquanto"). Adicionar francês/
+# espanhol/etc no futuro é só acrescentar uma entrada aqui, o resto do
+# pipeline (GoogleTranslator via deep-translator) já suporta qualquer par.
+IDIOMAS_SUPORTADOS = {"en": "English"}
+
+_cache_traducao: dict[tuple[str, str], str] = {}
+
+
+@app.route("/api/traduzir", methods=["POST"])
+def traduzir():
+    corpo = request.get_json(silent=True) or {}
+    texto = (corpo.get("texto") or "").strip()
+    idioma = (corpo.get("idioma") or "en").strip().lower()
+
+    if not texto:
+        return jsonify({"erro": "Campo 'texto' é obrigatório."}), 400
+    if idioma not in IDIOMAS_SUPORTADOS:
+        return jsonify({"erro": f"Idioma '{idioma}' não suportado ainda. Disponíveis: {list(IDIOMAS_SUPORTADOS)}"}), 400
+
+    chave = (texto, idioma)
+    if chave in _cache_traducao:
+        return jsonify({"texto_original": texto, "idioma_alvo": idioma, "traducao": _cache_traducao[chave], "do_cache": True})
+
+    ultimo_erro = None
+    for tentativa in range(3):
+        try:
+            traducao = GoogleTranslator(source="pt", target=idioma).translate(texto)
+            _cache_traducao[chave] = traducao
+            return jsonify({"texto_original": texto, "idioma_alvo": idioma, "traducao": traducao, "do_cache": False})
+        except Exception as erro:  # serviço de tradução externo — instável por natureza, vale tentar de novo
+            ultimo_erro = erro
+            time.sleep(0.5)
+
+    return jsonify({"erro": f"Falha ao traduzir depois de 3 tentativas: {ultimo_erro}"}), 502
 
 
 _carregar_modelos()
