@@ -1,3 +1,14 @@
+---
+title: SinalizAI
+emoji: 🤟
+colorFrom: gray
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # SinalizAI
 
 Reconhecimento de Libras (Língua Brasileira de Sinais) em tempo real via
@@ -255,17 +266,36 @@ Os dois modos degradam graciosamente: se só o modelo do alfabeto existir,
 o reconhecimento de palavra é desativado com uma mensagem clara em vez de
 quebrar.
 
-## Deploy (Render)
+## Deploy (Hugging Face Spaces)
 
-```
-Build Command: pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt && python -m sinalizai.baixar_modelos_mediapipe
-Start Command: gunicorn app:app
-```
+Caminho principal, via `Dockerfile` (já no repo — usa a mesma stack Python
+3.14 do dev local). Passo a passo:
+
+1. Conta grátis em [huggingface.co](https://huggingface.co).
+2. [huggingface.co/new-space](https://huggingface.co/new-space) — escolher
+   um nome, **SDK = Docker**, hardware gratuito (CPU basic), visibilidade
+   pública.
+3. Adicionar o Space como remote git e mandar o push:
+   ```bash
+   git remote add space https://huggingface.co/spaces/<seu-usuario>/<nome-do-space>
+   git push space master
+   ```
+   Quando o git pedir usuário/senha: usuário = seu usuário do HF, senha =
+   um **access token** (Settings > Access Tokens no HF, papel "write").
+4. O Space builda sozinho a partir do `Dockerfile` (a página `README.md`
+   já tem o front-matter YAML que o HF exige pra reconhecer o SDK/porta —
+   por isso ele aparece com `---` no topo). Em alguns minutos fica no ar em
+   `https://huggingface.co/spaces/<seu-usuario>/<nome-do-space>`.
 
 **Não verificado nesta sessão**: disponibilidade de wheel pré-compilada do
-MediaPipe/PyTorch pra Python 3.14 no ambiente Linux do Render (confirmado
-aqui só pra Windows/cp314). Se a wheel não existir pra a versão de Python
-do Render, fixar `runtime.txt` numa versão mais antiga (3.11/3.12) resolve.
+MediaPipe/PyTorch pra Python 3.14 no Linux (confirmado aqui só pra
+Windows/cp314, dentro do container Docker é Debian slim). Se a imagem
+falhar o build por causa disso, trocar `FROM python:3.14-slim` no
+`Dockerfile` por uma versão um pouco mais antiga (3.11/3.12 slim) resolve.
+
+**Nota sobre o plano gratuito**: diferente do Render (1 serviço só por
+conta no plano free), o Hugging Face Spaces gratuito não tem esse limite —
+dá pra ter vários Spaces públicos na mesma conta.
 
 ## Estrutura do projeto
 

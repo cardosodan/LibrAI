@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -210,4 +211,7 @@ def traduzir():
 _carregar_modelos()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    # PORT vem do ambiente em hosts como Hugging Face Spaces (exige 7860) —
+    # em dev local, sem essa variável, cai no 8080 de sempre.
+    porta = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=porta, debug=False)
