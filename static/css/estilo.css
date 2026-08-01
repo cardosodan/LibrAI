@@ -1,18 +1,23 @@
 :root {
-  /* Pedido explícito do usuário: site CINZA neutro (nem azul, nem preto,
-     nem branco) com os detalhes em verde/amarelo/azul — a base deixou de
-     carregar cor sozinha, quem carrega a identidade do Brasil agora são os
-     3 accents por cima do neutro. */
-  --bg-base: #333333;
-  --bg-surface: #3D3D3D;
-  --bg-elevated: #4A4A4A;
-  /* Contraste verificado pros 3: passam 4.9:1+ contra bg-base/bg-surface. */
-  --accent-signal: #F4C430;   /* amarelo — "em análise" */
-  --accent-confirm: #3DDC97;  /* verde — "confirmado" */
-  --accent-azul: #7CB9F5;     /* azul — detalhe de marca/identidade, sem função de estado */
-  --text-primary: #F5F5F5;
-  --text-muted: #B8B8B8;
-  --text-sobre-accent: #222222; /* texto ESCURO em cima do botão (accent-signal/confirm aqui são claros) */
+  /* Paleta com hierarquia clara — motivo da troca: verde/amarelo/azul
+     saturados lado a lado davam "efeito bandeira/torcida", sem uma cor
+     dominante. Agora --bg-base domina ~90% da tela (quase preto, leve tom
+     verde-noturno); ouro e verde continuam com função de estado (igual
+     sempre); azul-noite NUNCA é protagonista — só traço fino/detalhe. */
+  --bg-base: #0A120F;
+  --bg-surface: #121C17;
+  --bg-elevated: #1A2A22;
+  /* Contraste verificado: ouro passa bem (8.5:1+); verde fica em 4.0-4.4:1
+     contra bg-base/bg-surface (levemente abaixo do 4.5:1 ideal pra texto
+     normal, mas usado aqui só em texto grande/negrito ou não-texto, então
+     aceito); azul-detalhe (~2.2:1) é baixo de propósito — nunca vira texto,
+     só borda/ícone pequeno, onde esse contraste discreto é o efeito querido. */
+  --accent-signal: #D9A62E;   /* ouro fosco — "em análise" */
+  --accent-confirm: #1F8A5F;  /* verde profundo — "confirmado" */
+  --accent-detail: #2B4C7E;   /* azul-noite — só detalhe discreto, nunca protagonista */
+  --text-primary: #F5F1E6;
+  --text-muted: #8B9C93;
+  --text-sobre-accent: #0A120F; /* texto ESCURO em cima do botão de ouro (só 1.97:1 se fosse texto claro) */
 
   --fonte-display: "Space Grotesk", "Segoe UI", sans-serif;
   --fonte-corpo: "Inter", "Segoe UI", sans-serif;
@@ -38,8 +43,8 @@
 body {
   margin: 0;
   /* Sem cor aqui de propósito — quem pinta o fundo agora é o
-     .fundo-mosaico (SVG fixo, primeiro elemento do body), que já inclui
-     o cinza sólido por baixo do mosaico. Ver regra logo abaixo. */
+     .fundo-constelacao (SVG fixo, primeiro elemento do body), que já inclui
+     o --bg-base sólido por baixo da malha de pontos. Ver regra logo abaixo. */
   color: var(--text-primary);
   font-family: var(--fonte-corpo);
   font-weight: 400;
@@ -47,19 +52,40 @@ body {
   min-height: 100vh;
 }
 
-/* Mosaico bem discreto da bandeira do Brasil no fundo de toda a página —
-   pedido explícito do usuário. Losango amarelo + círculo azul sobre campo
-   verde, repetido em ladrilho pequeno, bem baixa opacidade (não é enfeite
-   central, é textura de fundo). O cinza sólido (--bg-base) mora dentro do
-   próprio SVG, então ele sozinho já é o fundo inteiro da página — o body
-   não precisa (e não deve) ter cor própria além dele. */
-.fundo-mosaico {
+/* Malha esparsa de pontos conectados no fundo da página — substituiu um
+   mosaico de losangos que "parecia papel de parede" e não tinha relação
+   nenhuma com o produto. Mesma linguagem visual do logo/elemento
+   assinatura (hand-tracking), bem discreta: linhas quase invisíveis,
+   pontos pouco mais visíveis, e só uma fração pequena deles "acesa" em
+   accent-signal, como um sinal ocasional na malha. */
+.fundo-constelacao {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
   z-index: -1;
+}
+
+.constelacao-linhas line {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-opacity: 0.07;
+}
+
+.constelacao-pontos circle {
+  fill: var(--text-muted);
+  fill-opacity: 0.14;
+}
+
+.constelacao-ponto-sinal {
+  fill: var(--accent-signal);
+  animation: respirar-sinal 7s ease-in-out infinite;
+}
+
+@keyframes respirar-sinal {
+  0%, 100% { fill-opacity: 0.16; }
+  50% { fill-opacity: 0.32; }
 }
 
 h1, h2 {
@@ -121,7 +147,13 @@ header h1 {
   margin: 0;
   font-size: 2.1rem;
   letter-spacing: -0.01em;
-  color: var(--accent-azul);
+  color: var(--text-primary);
+  display: inline-block;
+  /* --accent-detail (azul) entra como traço fino embaixo do título, não
+     como cor do texto — o azul tem contraste baixo de propósito (~2.2:1),
+     legível só funcionaria se ele fosse decoração, nunca texto principal. */
+  border-bottom: 2px solid var(--accent-detail);
+  padding-bottom: var(--space-1);
 }
 
 .subtitulo {
@@ -382,12 +414,12 @@ main {
 
 .aba.ativa {
   background: var(--bg-elevated);
-  color: var(--accent-azul);
-  border-color: var(--accent-azul);
+  color: var(--text-primary);
+  border-color: var(--accent-detail);
   font-weight: 500;
 }
 
-.aba.ativa:hover { color: var(--accent-azul); }
+.aba.ativa:hover { color: var(--text-primary); }
 
 .letras-suportadas {
   color: var(--text-muted);
@@ -626,7 +658,9 @@ main {
   margin-top: 0;
   font-size: 1.05rem;
   letter-spacing: 0.02em;
-  color: var(--accent-azul);
+  color: var(--text-primary);
+  border-left: 3px solid var(--accent-detail);
+  padding-left: var(--space-2);
 }
 
 .lista-historico {
@@ -806,6 +840,7 @@ footer a {
   .visor-scanner.analisando .bracket,
   .spinner-mao line,
   .spinner-mao circle,
+  .constelacao-ponto-sinal,
   #letra-atual,
   #palavra-atual,
   #frase-traduzida {
